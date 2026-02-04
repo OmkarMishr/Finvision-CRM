@@ -1,13 +1,13 @@
-import { Routes, Route, Navigate, useOutlet } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import LoginTypeSelector from '../pages/Auth/LoginTypeSelector'
 import Login from '../pages/Auth/Login'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import Dashboard from '../pages/Dashboard/Dashboard'
 import { useAuth } from '../context/AuthContext'
 
-//  PrivateRoute Component
-const PrivateRouteContent = () => {
+//PrivateRoute Component
+const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
-  const outlet = useOutlet()
 
   if (loading) {
     return (
@@ -20,37 +20,49 @@ const PrivateRouteContent = () => {
     )
   }
 
-  return isAuthenticated ? outlet : <Navigate to="/login" replace />
+  return isAuthenticated ? children : <Navigate to="/" replace />
 }
 
-// PublicRoute Component
-const PublicRouteContent = () => {
+ 
+const PublicRoute = ({ children }) => {
   const { isAuthenticated } = useAuth()
-  const outlet = useOutlet()
-
-  return isAuthenticated ? <Navigate to="/" replace /> : outlet
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children
 }
 
 const AppRoutes = () => (
   <Routes>
-    {/* PUBLIC ROUTES */}
-    <Route path="/login" element={
-      <PublicRouteContent />
-    }>
-      <Route index element={<Login />} />
+    {/* PUBLIC ROUTES - Login Flow */}
+    <Route 
+      path="/" 
+      element={
+        <PublicRoute>
+          <LoginTypeSelector />
+        </PublicRoute>
+      } 
+    />
+    
+    <Route 
+      path="/login" 
+      element={
+        <PublicRoute>
+          <Login />
+        </PublicRoute>
+      } 
+    />
+
+    {/* PRIVATE ROUTES - Dashboard */}
+    <Route 
+      path="/dashboard" 
+      element={
+        <PrivateRoute>
+          <DashboardLayout />
+        </PrivateRoute>
+      }
+    >
+      <Route index element={<Dashboard />} />
     </Route>
 
-    {/* PRIVATE ROUTES */}
-    <Route path="/" element={
-      <PrivateRouteContent />
-    }>
-      <Route element={<DashboardLayout />}>
-        <Route index element={<Dashboard />} />
-      </Route>
-    </Route>
-
-    {/* CATCH ALL */}
-    <Route path="*" element={<Navigate to="/" replace />} />
+    <Route path="*" element={<Navigate to={useAuth().isAuthenticated ? "/dashboard" : "/"} replace />} />
   </Routes>
 )
 
