@@ -1,98 +1,69 @@
-import { createContext, useContext, useReducer, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import axios from 'axios'
 
-const AuthContext = createContext()
-
-// Mock initial state (replace with real auth later)
-const initialState = {
-  user: null,
-  token: localStorage.getItem('token'),
-  isAuthenticated: false,
-  role: 'admin', // admin, staff, student
-  loading: true
-}
-
-const authReducer = (state, action) => {
-  switch (action.type) {
-    case 'LOGIN_SUCCESS':
-      localStorage.setItem('token', action.payload.token)
-      return {
-        ...state,
-        user: action.payload.user,
-        token: action.payload.token,
-        isAuthenticated: true,
-        role: action.payload.role,
-        loading: false
-      }
-    case 'LOGOUT':
-      localStorage.removeItem('token')
-      return {
-        ...state,
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        role: null,
-        loading: false
-      }
-    case 'SET_LOADING':
-      return { ...state, loading: action.payload }
-    default:
-      return state
-  }
-}
+const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState)
+  const [user, setUser] = useState(null)
+  const [token, setToken] = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  // Check token on app start
+  // optional: load from localStorage
   useEffect(() => {
-    if (state.token) {
-      // Verify token with backend
-      dispatch({ type: 'LOGIN_SUCCESS', payload: {
-        token: state.token,
-        user: { name: 'Admin', email: 'admin@nalmifx.com' },
-        role: 'admin'
-      }})
-    } else {
-      dispatch({ type: 'SET_LOADING', payload: false })
+    const savedToken = localStorage.getItem('fv_token')
+    const savedUser = localStorage.getItem('fv_user')
+    if (savedToken && savedUser) {
+      setToken(savedToken)
+      setUser(JSON.parse(savedUser))
     }
   }, [])
 
-  const login = (email, password) => {
-    // Mock login (replace with real API call)
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        dispatch({
-          type: 'LOGIN_SUCCESS',
-          payload: {
-            token: 'mock-jwt-token',
-            user: { name: 'Admin User', email },
-            role: 'admin'
-          }
-        })
-        resolve()
-      }, 1000)
-    })
+  const login = async (email, password) => {
+    setLoading(true)
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/login', {
+        email,
+        password,
+      })
+
+      const { token, user } = res.data
+
+      setToken(token)
+      setUser(user)
+
+      localStorage.setItem('fv_token', token)
+      localStorage.setItem('fv_user', JSON.stringify(user))
+
+      return { success: true }
+    } catch (err) {
+      console.error('Login error:', err.response?.data || err.message)
+      return {
+        success: false,
+        message:
+          err.response?.data?.message || 'Unable to login. Please try again.',
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const logout = () => {
-    dispatch({ type: 'LOGOUT' })
+    setToken(null)
+    setUser(null)
+    localStorage.removeItem('fv_token')
+    localStorage.removeItem('fv_user')
   }
 
-  return (
-    <AuthContext.Provider value={{ 
-      ...state, 
-      login, 
-      logout 
-    }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  const value = {
+    user,
+    token,
+    loading,
+    login,
+    logout,
+    isAuthenticated: !!token,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
-  }
-  return context
-}
+export const useAuth = () => useContext(AuthContext)

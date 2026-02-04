@@ -20,9 +20,8 @@ const Sidebar = ({ isOpen, onClose }) => {
         {/* Logo */}
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">F</span>
-            </div>
+              <img src="/assets/images/finvision-logo.png" alt="Finvision CRM Logo" className="w-16 h-16 "
+              />
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                 FINVISION CRM
@@ -32,6 +31,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
         </div>
 
+
         {/* Menu */}
         <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
           {menuItems.map((item, index) => {
@@ -40,11 +40,10 @@ const Sidebar = ({ isOpen, onClose }) => {
               <a
                 key={index}
                 href={item.href}
-                className={`sidebar-link flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${
-                  item.active
+                className={`sidebar-link flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${item.active
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
                     : 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
@@ -64,8 +63,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Mobile backdrop */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 lg:hidden z-40" 
+        <div
+          className="fixed inset-0 bg-black/50 lg:hidden z-40"
           onClick={onClose}
         />
       )}
