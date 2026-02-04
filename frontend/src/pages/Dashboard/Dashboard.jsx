@@ -30,7 +30,7 @@ const Dashboard = () => {
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="lg:ml-72">
+      <div className="">
         {/* Navbar */}
         <Navbar />
 

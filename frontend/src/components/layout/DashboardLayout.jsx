@@ -1,6 +1,5 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../layout/Sidebar'
-import Navbar from '../layout/Navbar'
 import { useState } from 'react'
 
 const DashboardLayout = () => {
@@ -23,7 +22,6 @@ const DashboardLayout = () => {
 
       {/* Main Content */}
       <div className="lg:ml-72">
-        <Navbar />
         <main>
           <Outlet />
         </main>
