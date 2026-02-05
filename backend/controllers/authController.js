@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const jwt = require('jsonwebtoken')
+const bcrypt = require('bcryptjs')
 const { validationResult } = require('express-validator')
 
 // Generate JWT Token
@@ -98,74 +99,81 @@ const registerUser = async (req, res) => {
 // @access  Public
 const loginUser = async (req, res) => {
   try {
-    console.log('🔐 Login attempt:', req.body.email)
-
-    // Validation
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      })
-    }
-
     const { email, password } = req.body
 
-    // Find user with password field
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password')
-    
-    console.log('👤 User found:', !!user)
-    
-    if (!user || !(await user.comparePassword(password))) {
-      console.log('❌ Invalid credentials')
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
+    console.log('🔐 Login attempt:', email)
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ 
+        message: 'Please provide email and password' 
       })
     }
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account is deactivated. Contact administrator.'
+    // Find user by email (with password field included)
+    const user = await User.findOne({ email }).select('+password')
+    
+    if (!user) {
+      console.log('❌ User not found:', email)
+      return res.status(401).json({ 
+        message: 'Invalid credentials' 
       })
     }
 
-    // Update last login
-    user.lastLogin = new Date()
-    await user.save()
+    // Check if password exists
+    if (!user.password) {
+      console.error('⚠️  User has no password:', email)
+      return res.status(500).json({ 
+        message: 'Account configuration error. Please contact administrator.' 
+      })
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password)
+    
+    if (!isMatch) {
+      console.log('❌ Invalid password for:', email)
+      return res.status(401).json({ 
+        message: 'Invalid credentials' 
+      })
+    }
+
+    // Check if user is active (optional)
+    if (user.isActive === false) {
+      console.log('⚠️  Account deactivated:', email)
+      return res.status(403).json({ 
+        message: 'Account has been deactivated' 
+      })
+    }
 
     // Generate JWT token
-    const token = generateToken(user._id, user.role)
+    const token = jwt.sign(
+      { 
+        userId: user._id, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
 
-    // Safe user object
-    const safeUser = {
-      id: user._id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      isActive: user.isActive,
-      phone: user.phone,
-      profilePhoto: user.profilePhoto
-    }
-
-    console.log('✅ Login successful:', user.email)
-
+    // Send response
     res.json({
-      success: true,
-      message: 'Login successful',
       token,
-      user: safeUser
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar || null
+      }
     })
+
+    console.log('✅ Login successful:', email, `(${user.role})`)
 
   } catch (error) {
     console.error('❌ Login Error:', error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login'
+    res.status(500).json({ 
+      message: 'Server error during login' 
     })
   }
 }
