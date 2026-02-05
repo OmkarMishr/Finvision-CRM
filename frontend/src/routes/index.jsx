@@ -5,7 +5,7 @@ import DashboardLayout from '../components/layout/DashboardLayout'
 import Dashboard from '../pages/Dashboard/Dashboard'
 import { useAuth } from '../context/AuthContext'
 
-//PrivateRoute Component
+// PrivateRoute Component
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
 
@@ -23,36 +23,41 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/" replace />
 }
 
- 
+// PublicRoute Component
 const PublicRoute = ({ children }) => {
   const { isAuthenticated } = useAuth()
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children
 }
 
+const CatchAllRedirect = () => {
+  const { isAuthenticated } = useAuth()
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
+}
+
 const AppRoutes = () => (
   <Routes>
     {/* PUBLIC ROUTES - Login Flow */}
-    <Route 
-      path="/" 
+    <Route
+      path="/"
       element={
         <PublicRoute>
           <LoginTypeSelector />
         </PublicRoute>
-      } 
+      }
     />
-    
-    <Route 
-      path="/login" 
+
+    <Route
+      path="/login"
       element={
         <PublicRoute>
           <Login />
         </PublicRoute>
-      } 
+      }
     />
 
     {/* PRIVATE ROUTES - Dashboard */}
-    <Route 
-      path="/dashboard" 
+    <Route
+      path="/dashboard"
       element={
         <PrivateRoute>
           <DashboardLayout />
@@ -62,7 +67,8 @@ const AppRoutes = () => (
       <Route index element={<Dashboard />} />
     </Route>
 
-    <Route path="*" element={<Navigate to={useAuth().isAuthenticated ? "/dashboard" : "/"} replace />} />
+  
+    <Route path="*" element={<CatchAllRedirect />} />
   </Routes>
 )
 

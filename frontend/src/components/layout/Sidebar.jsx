@@ -1,5 +1,5 @@
 import { Menu, Users, DollarSign, Calendar, BookOpen, Award, Video, Users2, Settings, LogOut } from 'lucide-react'
-
+import { useAuth } from '../../context/AuthContext'
 const Sidebar = ({ isOpen, onClose }) => {
   const menuItems = [
     { icon: Menu, label: 'Dashboard', href: '/', active: true },
@@ -13,6 +13,15 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Users, label: 'Front Office', href: '/office' },
     { icon: Settings, label: 'Settings', href: '/settings' }
   ]
+  const { logout } = useAuth()
+
+  const handleLogout = () => {
+    const confirmed = window.confirm('Are you sure you want to logout?')
+    if (!confirmed) return
+    logout() // clears state + localStorage
+    navigate('/', { replace: true })
+    onClose?.()
+  }
 
   return (
     <div className={`fixed top-0 left-0 z-50 h-screen w-72 bg-white border-r border-gray-100 transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
@@ -54,7 +63,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         {/* Logout */}
         <div className="p-6 border-t border-gray-100 mt-auto">
-          <button className="w-full flex items-center gap-3 p-4 text-left rounded-xl hover:bg-red-50 hover:text-red-600 transition-all duration-200">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 p-4 text-left rounded-xl hover:bg-red-50 hover:text-red-600 transition-all duration-200">
             <LogOut className="w-5 h-5" />
             <span>Logout</span>
           </button>
