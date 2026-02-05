@@ -35,9 +35,9 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          {/* replace with your Finvision logo img */}
-          <div className="mx-auto w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <span className="text-3xl font-bold text-white">F</span>
+          {/* Finvision logo img */}
+          <div className="mx-auto w-24 h-24 bg-gradient-to-r  rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+          <img src="/assets/images/finvision-logo.png" alt="Finvision CRM Logo" className="w-40 h-46"/>
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">
             Finvision-CRM

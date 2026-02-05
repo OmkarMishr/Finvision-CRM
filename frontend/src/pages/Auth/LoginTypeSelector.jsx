@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { ArrowRight, User, Users, Shield, ChevronRight } from 'lucide-react'
+import { ArrowRight, User, Users, Shield, UserPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import Button from '../../components/common/Button'
 
 const LoginTypeSelector = () => {
   const navigate = useNavigate()
@@ -9,119 +8,101 @@ const LoginTypeSelector = () => {
 
   const loginTypes = [
     {
-      type: 'admin',
-      title: 'Admin Panel',
-      description: 'Manage students, staff, fees, attendance & institute settings',
-      icon: Shield,
-      color: 'from-indigo-500 to-purple-600',
-      users: 'For Institute Admins'
+      type: 'student',
+      title: 'Student Login',
+      icon: User,
+      gradient: 'from-blue-500 to-blue-600'
     },
     {
       type: 'staff',
-      title: 'Staff Portal', 
-      description: 'Manage classes, attendance, student records & reports',
-      icon: Users,
-      color: 'from-green-500 to-emerald-600',
-      users: 'For Teachers & Staff'
+      title: 'Staff Login', 
+      icon: User,
+      gradient: 'from-blue-500 to-blue-600'
     },
     {
-      type: 'student',
-      title: 'Student Portal',
-      description: 'View fees, attendance, grades, certificates & announcements',
-      icon: User,
-      color: 'from-blue-500 to-cyan-600',
-      users: 'For Students'
+      type: 'admin',
+      title: 'Admin Login',
+      icon: Shield,
+      gradient: 'from-blue-500 to-blue-600'
+    },
+    {
+      type: 'unregistered',
+      title: 'Unregistered Student',
+      icon: UserPlus,
+      gradient: 'from-blue-500 to-blue-600'
     }
   ]
 
   const handleSelectType = (type) => {
     setSelectedType(type)
-    // Auto-redirect to login after selection (or keep selection flow)
     setTimeout(() => {
       navigate(`/login?type=${type}`)
-    }, 500)
+    }, 300)
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-xl px-8 py-4 rounded-3xl shadow-2xl border border-white/50 mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-2xl font-bold text-white">F</span>
+      <div className="max-w-3xl w-full">
+        {/* Header Logo */}
+        <div className="text-center mb-3">
+          <div className="inline-block mb-3">
+            <img 
+              src="/assets/images/finvision-logo.png" 
+              alt="Institute Logo" 
+              className="w-40 h-46 mx-auto object-contain"
+            />
+          </div>
+        </div>
+
+        {/* Login Type Card */}
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+          {/* Card Header */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-8 py-5">
+            <div className="flex items-center gap-3 text-white">
+              <ArrowRight className="w-6 h-6" />
+              <h2 className="text-xl font-semibold tracking-wide">SELECT LOGIN TYPE</h2>
             </div>
-            <div>
-              <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent">
-                FINVISION CRM
-              </h1>
-              <p className="text-lg text-gray-600 mt-2">Select your login type</p>
+          </div>
+
+          {/* Card Body */}
+          <div className="p-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {loginTypes.map((loginType) => {
+                const Icon = loginType.icon
+                const isSelected = selectedType === loginType.type
+                
+                return (
+                  <button
+                    key={loginType.type}
+                    onClick={() => handleSelectType(loginType.type)}
+                    className={`group relative bg-gradient-to-r ${loginType.gradient} hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
+                      isSelected ? 'ring-4 ring-blue-300 scale-105' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                        <Icon className="w-7 h-7 text-white" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <h3 className="text-lg font-semibold text-white">
+                          {loginType.title}
+                        </h3>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-white/80 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
 
-        {/* Login Type Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {loginTypes.map((loginType, index) => {
-            const Icon = loginType.icon
-            const isSelected = selectedType === loginType.type
-            
-            return (
-              <div
-                key={index}
-                className={`group relative bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-500 border-2 border-transparent hover:border-gray-200 cursor-pointer ${
-                  isSelected ? 'ring-4 ring-blue-500/20 shadow-2xl scale-105' : 'hover:scale-105'
-                }`}
-                onClick={() => handleSelectType(loginType.type)}
-              >
-                {/* Selection Indicator */}
-                {isSelected && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white p-3 rounded-2xl shadow-lg border-4 border-white">
-                    <ArrowRight className="w-5 h-5" />
-                  </div>
-                )}
-
-                {/* Icon */}
-                <div className={`w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300 ${loginType.color}`}>
-                  <Icon className="w-10 h-10 text-white" />
-                </div>
-
-                {/* Content */}
-                <div className="text-center space-y-4">
-                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-gray-800">
-                    {loginType.title}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {loginType.description}
-                  </p>
-                  <p className="text-sm font-semibold text-gray-500 bg-gray-100/50 px-3 py-1 rounded-xl inline-block">
-                    {loginType.users}
-                  </p>
-                </div>
-
-                {/* Arrow */}
-                <div className={`absolute bottom-6 right-6 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center transform transition-all group-hover:translate-x-2 ${isSelected ? 'bg-blue-500 text-white' : ''}`}>
-                  <ChevronRight className="w-6 h-6" />
-                </div>
-              </div>
-            )
-          })}
+        {/* Footer Text */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-500">
+            Select your role to continue to the login page
+          </p>
         </div>
-
-        {/* Continue Button */}
-        {selectedType && (
-          <div className="text-center mt-16">
-            <Button 
-              size="xl" 
-              variant="primary"
-              onClick={() => navigate(`/login?type=${selectedType}`)}
-              className="shadow-2xl !px-12 !py-6"
-            >
-              Continue to {selectedType.toUpperCase()} Login
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   )
