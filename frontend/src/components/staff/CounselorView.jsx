@@ -3,7 +3,8 @@ import {
   Users, TrendingUp, CheckCircle, Clock, Search, 
   Eye, PhoneCall, MessageSquare, Calendar
 } from 'lucide-react'
-import axios from 'axios'
+import axiosInstance from '../../config/axios'
+import { API_ENDPOINTS } from '../../config/api'
 import LeadDetailsModal from './LeadDetailsModal'
 
 const CounselorView = ({ onStatsUpdate }) => {
@@ -35,7 +36,7 @@ const CounselorView = ({ onStatsUpdate }) => {
     try {
       setLoading(true)
       const token = localStorage.getItem('fv_token')
-      const response = await axios.get('http://localhost:5000/api/leads', {
+      const response = await axios.get(API_ENDPOINTS.leads.base, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setLeads(response.data.leads)

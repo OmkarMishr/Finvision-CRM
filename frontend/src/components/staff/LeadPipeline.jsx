@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { User, Phone, Mail, MapPin, Calendar, ArrowRight } from 'lucide-react'
-import axios from 'axios'
+import axiosInstance from '../../config/axios'
+import { API_ENDPOINTS } from '../../config/api'
 
 const LeadPipeline = ({ leads, onLeadClick, onLeadUpdated }) => {
   const stages = [
@@ -34,8 +35,8 @@ const LeadPipeline = ({ leads, onLeadClick, onLeadUpdated }) => {
 
     try {
       const token = localStorage.getItem('fv_token')
-      await axios.put(
-        `http://localhost:5000/api/leads/${draggedLead._id}/stage`,
+      await axiosInstance.put(
+        API_ENDPOINTS.leads.updateStage(draggedLead._id),
         { stage: targetStage },
         { headers: { Authorization: `Bearer ${token}` } }
       )

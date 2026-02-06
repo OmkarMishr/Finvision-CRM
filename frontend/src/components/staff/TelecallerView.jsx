@@ -3,7 +3,8 @@ import {
   Plus, Search, Filter, Download, Eye, Edit, Trash2,
   PhoneCall, MessageCircle, UserCheck, Calendar, ArrowRight
 } from 'lucide-react'
-import axios from 'axios'
+import axiosInstance from '../../config/axios'
+import { API_ENDPOINTS } from '../../config/api'
 import LeadPipeline from './LeadPipeline'
 import AddLeadModal from './AddLeadModal'
 import LeadDetailsModal from './LeadDetailsModal'
@@ -35,7 +36,7 @@ const TelecallerView = ({ onStatsUpdate }) => {
     try {
       setLoading(true)
       const token = localStorage.getItem('fv_token')
-      const response = await axios.get('http://localhost:5000/api/leads', {
+      const response = await axiosInstance.get(API_ENDPOINTS.leads.base, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setLeads(response.data.leads)

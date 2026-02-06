@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, User, Phone, Mail, MapPin, Briefcase, GraduationCap, Calendar } from 'lucide-react'
-import axios from 'axios'
+import axiosInstance from '../../config/axios'
+import { API_ENDPOINTS } from '../../config/api'
 
 const AddLeadModal = ({ onClose, onLeadAdded }) => {
   const [formData, setFormData] = useState({
@@ -42,15 +43,14 @@ const AddLeadModal = ({ onClose, onLeadAdded }) => {
         }
       })
 
-      // ✅ Convert age to number if provided
+      //  Convert age to number if provided
       if (cleanData.age) {
         cleanData.age = parseInt(cleanData.age)
       }
 
       console.log('Submitting lead data:', cleanData)
 
-      const response = await axios.post(
-        'http://localhost:5000/api/leads',
+      const response = await axiosInstance.post(API_ENDPOINTS.leads.base,
         cleanData,
         { headers: { Authorization: `Bearer ${token}` } }
       )

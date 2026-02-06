@@ -8,7 +8,8 @@ import { useAuth } from '../../context/AuthContext'
 import Sidebar from '../../components/layout/Sidebar'
 import TelecallerView from '../../components/staff/TelecallerView'
 import CounselorView from '../../components/staff/CounselorView'
-import axios from 'axios'
+import axiosInstance from '../../config/axios'
+import { API_ENDPOINTS } from '../../config/api'
 
 const StaffDashboard = () => {
   const { user } = useAuth()
@@ -32,7 +33,7 @@ const StaffDashboard = () => {
     try {
       setLoading(true)
       const token = localStorage.getItem('fv_token')
-      const response = await axios.get('http://localhost:5000/api/leads/stats/overview', {
+      const response = await axiosInstance.get(API_ENDPOINTS.leads.stats, {
         headers: { Authorization: `Bearer ${token}` }
       })
 

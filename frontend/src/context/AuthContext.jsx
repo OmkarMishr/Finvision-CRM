@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import axios from 'axios'
+import axiosInstance from '../config/axios'
+import { API_ENDPOINTS } from '../config/api'
 
 const AuthContext = createContext(null)
 
@@ -21,7 +22,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true)
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await axiosInstance.post(API_ENDPOINTS.auth.login, {
         email,
         password,
       })

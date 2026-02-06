@@ -3,7 +3,8 @@ import {
   X, User, Phone, Mail, MapPin, Calendar, MessageSquare, 
   Edit, Save, ArrowRight, UserCheck, DollarSign
 } from 'lucide-react'
-import axios from 'axios'
+import axiosInstance from '../../config/axios'
+import { API_ENDPOINTS } from '../../config/api'
 
 const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
   const [isEditing, setIsEditing] = useState(false)
@@ -34,8 +35,8 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('fv_token')
-      await axios.put(
-        `http://localhost:5000/api/leads/${lead._id}`,
+      await axiosInstance.put(
+        API_ENDPOINTS.leads.byId(lead._id),
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -54,8 +55,8 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
 
     try {
       const token = localStorage.getItem('fv_token')
-      await axios.post(
-        `http://localhost:5000/api/leads/${lead._id}/remarks`,
+      await axiosInstance.post(
+        API_ENDPOINTS.leads.addRemark(lead._id),
         { note: newRemark },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -71,8 +72,8 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
     if (window.confirm(`Move this lead to ${newStage}?`)) {
       try {
         const token = localStorage.getItem('fv_token')
-        await axios.put(
-          `http://localhost:5000/api/leads/${lead._id}/stage`,
+        await axiosInstance.put(
+            API_ENDPOINTS.leads.updateStage(lead._id),
           { stage: newStage },
           { headers: { Authorization: `Bearer ${token}` } }
         )
