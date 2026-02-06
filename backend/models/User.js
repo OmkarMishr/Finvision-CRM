@@ -43,6 +43,12 @@ const userSchema = new mongoose.Schema({
     required: true,
     default: 'student'
   },
+  // Staff Sub-Role
+  staffRole: {
+    type: String,
+    enum: ['telecaller', 'counselor', 'Teacher'],
+    default: 'Teacher'
+  },
 
   // Admin-specific fields
   adminInfo: {
@@ -104,6 +110,15 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 })
+
+// Virtual field for full name
+userSchema.virtual('name').get(function() {
+  return `${this.firstName} ${this.lastName}`
+})
+
+// Ensure virtuals are included when converting to JSON
+userSchema.set('toJSON', { virtuals: true })
+userSchema.set('toObject', { virtuals: true })
 
 // Hash password before saving
 userSchema.pre('save', async function() {

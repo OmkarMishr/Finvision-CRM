@@ -4,13 +4,22 @@ const bcrypt = require('bcryptjs')
 const { validationResult } = require('express-validator')
 
 // Generate JWT Token
-const generateToken = (id, role) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  })
+const generateToken = (userId, role, staffRole = null) => {
+  return jwt.sign(
+    { 
+      userId: userId.toString(),
+      id: userId.toString(),
+      role,
+      staffRole
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRE || '7d'
+    }
+  )
 }
 
-// @desc    Register new user (FIXED: Uses .save() for password hashing)
+// @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
@@ -27,7 +36,7 @@ const registerUser = async (req, res) => {
       })
     }
 
-    const { email, password, firstName, lastName, role, ...roleSpecificData } = req.body
+    const { email, password, firstName, lastName, role, staffRole, phone, branch } = req.body
 
     // Check if user exists
     const existingUser = await User.findOne({ email })
@@ -38,34 +47,39 @@ const registerUser = async (req, res) => {
       })
     }
 
-    // ✅ FIXED: Use new User() + save() to trigger pre-save hook
+    // Create new user (password will be hashed by pre-save hook)
     const user = new User({
-      email: email.toLowerCase(),
-      password, // Will be hashed by pre-save hook
+      email: email.toLowerCase().trim(),
+      password,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      role,
-      [`${role}Info`]: roleSpecificData
+      role: role || 'student',
+      staffRole: role === 'staff' ? (staffRole || 'telecaller') : null,
+      phone: phone || null,
+      branch: branch || 'Main'
     })
 
-    // This triggers the pre('save') password hashing hook
+    // Save user (triggers pre-save hook for password hashing)
     await user.save()
     
-    console.log('✅ User registered:', user.email, 'Role:', user.role)
+    console.log('✅ User registered:', user.email, 'Role:', user.role, 'StaffRole:', user.staffRole)
 
-    // Generate JWT token
-    const token = generateToken(user._id, user.role)
+    // Generate JWT token with userId
+    const token = generateToken(user._id, user.role, user.staffRole)
 
-    // Return user WITHOUT password
+    // Return user data WITHOUT password
     const safeUser = {
       id: user._id,
-      email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
       role: user.role,
-      isActive: user.isActive,
+      staffRole: user.staffRole,
       phone: user.phone,
-      profilePhoto: user.profilePhoto
+      branch: user.branch,
+      isActive: user.isActive,
+      avatar: user.avatar
     }
 
     res.status(201).json({
@@ -106,16 +120,18 @@ const loginUser = async (req, res) => {
     // Validation
     if (!email || !password) {
       return res.status(400).json({ 
+        success: false,
         message: 'Please provide email and password' 
       })
     }
 
-    // Find user by email (with password field included)
-    const user = await User.findOne({ email }).select('+password')
+    // Find user by email (include password field)
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password')
     
     if (!user) {
       console.log('❌ User not found:', email)
       return res.status(401).json({ 
+        success: false,
         message: 'Invalid credentials' 
       })
     }
@@ -124,55 +140,62 @@ const loginUser = async (req, res) => {
     if (!user.password) {
       console.error('⚠️  User has no password:', email)
       return res.status(500).json({ 
+        success: false,
         message: 'Account configuration error. Please contact administrator.' 
       })
     }
 
-    // Verify password
+    // Verify password using bcrypt
     const isMatch = await bcrypt.compare(password, user.password)
     
     if (!isMatch) {
       console.log('❌ Invalid password for:', email)
       return res.status(401).json({ 
+        success: false,
         message: 'Invalid credentials' 
       })
     }
 
-    // Check if user is active (optional)
+    // Check if user is active
     if (user.isActive === false) {
       console.log('⚠️  Account deactivated:', email)
       return res.status(403).json({ 
-        message: 'Account has been deactivated' 
+        success: false,
+        message: 'Account has been deactivated. Please contact administrator.' 
       })
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user._id, 
-        role: user.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    // Generate JWT token with userId
+    const token = generateToken(user._id, user.role, user.staffRole)
+
+    // Prepare safe user data (without password)
+    const safeUser = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role,
+      staffRole: user.staffRole,
+      phone: user.phone,
+      branch: user.branch,
+      avatar: user.avatar
+    }
 
     // Send response
     res.json({
+      success: true,
+      message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar || null
-      }
+      user: safeUser
     })
 
-    console.log('✅ Login successful:', email, `(${user.role})`)
+    console.log('✅ Login successful:', email, `(${user.role}${user.staffRole ? ' - ' + user.staffRole : ''})`)
 
   } catch (error) {
     console.error('❌ Login Error:', error.message)
     res.status(500).json({ 
+      success: false,
       message: 'Server error during login' 
     })
   }
@@ -183,9 +206,11 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getProfile = async (req, res) => {
   try {
-    console.log('👤 Profile request for user:', req.user.id)
+    const userId = req.user.userId || req.user.id
 
-    const user = await User.findById(req.user.id).select('-password')
+    console.log('👤 Profile request for user:', userId)
+
+    const user = await User.findById(userId).select('-password')
     
     if (!user) {
       return res.status(404).json({
@@ -194,9 +219,26 @@ const getProfile = async (req, res) => {
       })
     }
 
+    // Format user data
+    const userData = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role,
+      staffRole: user.staffRole,
+      phone: user.phone,
+      branch: user.branch,
+      avatar: user.avatar,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    }
+
     res.json({
       success: true,
-      user
+      user: userData
     })
 
   } catch (error) {
@@ -213,34 +255,140 @@ const getProfile = async (req, res) => {
 // @access  Private
 const getDashboardStats = async (req, res) => {
   try {
-    console.log('📊 Dashboard stats for:', req.user.role)
+    const userId = req.user.userId || req.user.id
+    const { role, staffRole } = req.user
 
-    const { role } = req.user
+    console.log('📊 Dashboard stats for:', role, staffRole || '')
 
     let stats = {}
 
     if (role === 'admin') {
-      stats = {
-        totalStudents: await User.countDocuments({ role: 'student', isActive: true }),
-        totalStaff: await User.countDocuments({ role: 'staff', isActive: true }),
-        totalUsers: await User.countDocuments({ isActive: true }),
-        recentLogins: 42,
-        pendingFees: '₹2,45,000',
-        todayAttendance: '94%'
+      // Admin dashboard statistics
+      const totalUsers = await User.countDocuments()
+      const totalStaff = await User.countDocuments({ role: 'staff', isActive: true })
+      const totalStudents = await User.countDocuments({ role: 'student', isActive: true })
+      const activeUsers = await User.countDocuments({ isActive: true })
+      const inactiveUsers = await User.countDocuments({ isActive: false })
+
+      // Get Lead stats if Lead model exists
+      try {
+        const Lead = require('../models/Lead')
+        const totalLeads = await Lead.countDocuments()
+        const enquiryLeads = await Lead.countDocuments({ stage: 'Enquiry' })
+        const counsellingLeads = await Lead.countDocuments({ stage: 'Counselling' })
+        const freeLeads = await Lead.countDocuments({ batchType: 'Free' })
+        const paidLeads = await Lead.countDocuments({ batchType: 'Paid' })
+        const convertedLeads = await Lead.countDocuments({ convertedToPaid: true })
+        
+        // Calculate total revenue
+        const revenueResult = await Lead.aggregate([
+          { $group: { _id: null, totalRevenue: { $sum: '$actualRevenue' } } }
+        ])
+        const totalRevenue = revenueResult[0]?.totalRevenue || 0
+
+        stats = {
+          users: {
+            totalUsers,
+            totalStaff,
+            totalStudents,
+            activeUsers,
+            inactiveUsers
+          },
+          leads: {
+            totalLeads,
+            enquiryLeads,
+            counsellingLeads,
+            freeLeads,
+            paidLeads,
+            convertedLeads,
+            conversionRate: totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0
+          },
+          revenue: {
+            totalRevenue,
+            formattedRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`
+          },
+          role: 'admin'
+        }
+      } catch (leadError) {
+        // If Lead model doesn't exist yet
+        stats = {
+          users: {
+            totalUsers,
+            totalStaff,
+            totalStudents,
+            activeUsers,
+            inactiveUsers
+          },
+          role: 'admin',
+          message: 'Lead statistics not available yet'
+        }
       }
+
     } else if (role === 'staff') {
-      stats = {
-        myStudents: 45,
-        todayClasses: 6,
-        pendingMarks: 12,
-        attendanceTaken: 'Yes'
+      // Staff dashboard statistics
+      try {
+        const Lead = require('../models/Lead')
+        
+        let leadQuery = {}
+        if (staffRole === 'telecaller') {
+          leadQuery.assignedTelecaller = userId
+        } else if (staffRole === 'counselor') {
+          leadQuery.assignedCounselor = userId
+        }
+
+        const totalLeads = await Lead.countDocuments(leadQuery)
+        const freeLeads = await Lead.countDocuments({ ...leadQuery, batchType: 'Free' })
+        const paidLeads = await Lead.countDocuments({ ...leadQuery, batchType: 'Paid' })
+        const conversions = await Lead.countDocuments({ ...leadQuery, convertedToPaid: true })
+        const enquiryLeads = await Lead.countDocuments({ ...leadQuery, stage: 'Enquiry' })
+        const counsellingLeads = await Lead.countDocuments({ ...leadQuery, stage: 'Counselling' })
+
+        // Calculate revenue contribution
+        const revenueResult = await Lead.aggregate([
+          { $match: leadQuery },
+          { $group: { _id: null, totalRevenue: { $sum: '$actualRevenue' } } }
+        ])
+        const totalRevenue = revenueResult[0]?.totalRevenue || 0
+
+        stats = {
+          totalLeads,
+          freeLeads,
+          paidLeads,
+          conversions,
+          enquiryLeads,
+          counsellingLeads,
+          conversionRate: totalLeads > 0 ? Math.round((conversions / totalLeads) * 100) : 0,
+          totalRevenue,
+          formattedRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`,
+          role: 'staff',
+          staffRole
+        }
+      } catch (leadError) {
+        stats = {
+          totalLeads: 0,
+          freeLeads: 0,
+          paidLeads: 0,
+          conversions: 0,
+          role: 'staff',
+          staffRole,
+          message: 'Lead statistics not available yet'
+        }
       }
+
     } else if (role === 'student') {
+      // Student dashboard statistics
+      const user = await User.findById(userId).select('-password')
+      
       stats = {
-        myAttendance: '95%',
-        pendingFees: '₹15,000',
-        grades: 'A',
-        nextClass: 'Maths - 2:00 PM'
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone,
+        branch: user.branch,
+        role: 'student',
+        // Additional student stats can be added here
+        myAttendance: '0%',
+        pendingFees: '₹0',
+        nextClass: 'Not scheduled'
       }
     }
 
@@ -248,6 +396,7 @@ const getDashboardStats = async (req, res) => {
       success: true,
       stats,
       role,
+      staffRole: staffRole || null,
       message: `${role.charAt(0).toUpperCase() + role.slice(1)} dashboard data loaded`
     })
 

@@ -43,6 +43,7 @@ connectDB.connect().then(() => {
 
   // Auth Routes
 app.use('/api/auth', require('./routes/auth'))
+app.use('/api/leads', require('./routes/leads'))
 
   // 404 Handler
   app.use((req, res) => {
