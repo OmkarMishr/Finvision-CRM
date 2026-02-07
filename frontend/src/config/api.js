@@ -20,6 +20,18 @@ export const API_ENDPOINTS = {
     updateStage: (id) => `${API_URL}/api/leads/${id}/stage`,
     addRemark: (id) => `${API_URL}/api/leads/${id}/remarks`,
     assignCounselor: (id) => `${API_URL}/api/leads/${id}/assign-counselor`
+  },
+  
+  // Student endpoints
+  students: {
+    base: `${API_URL}/api/students`,
+    myProfile: `${API_URL}/api/students/my-profile`,
+    stats: `${API_URL}/api/students/stats/overview`,
+    byId: (id) => `${API_URL}/api/students/${id}`,
+    convertFromLead: (leadId) => `${API_URL}/api/students/convert-from-lead/${leadId}`,
+    convertToPaid: (id) => `${API_URL}/api/students/${id}/convert-to-paid`,
+    addNote: (id) => `${API_URL}/api/students/${id}/notes`,
+    updateStatus: (id) => `${API_URL}/api/students/${id}/status`
   }
 }
 

@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { 
-  X, User, Phone, Mail, MapPin, Calendar, MessageSquare, 
-  Edit, Save, ArrowRight, UserCheck, DollarSign
-} from 'lucide-react'
+import { X, User, Phone, Mail, MapPin, Calendar, MessageSquare, Edit, Save, ArrowRight, UserCheck, DollarSign } from 'lucide-react'
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
+import ConvertToStudentModal from './ConvertToStudentModal'
 
 const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
   const [isEditing, setIsEditing] = useState(false)
@@ -25,6 +23,7 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
   })
   const [newRemark, setNewRemark] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showConvertModal, setShowConvertModal] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -73,7 +72,7 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
       try {
         const token = localStorage.getItem('fv_token')
         await axiosInstance.put(
-            API_ENDPOINTS.leads.updateStage(lead._id),
+          API_ENDPOINTS.leads.updateStage(lead._id),
           { stage: newStage },
           { headers: { Authorization: `Bearer ${token}` } }
         )
@@ -86,6 +85,13 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
   }
 
   const stages = ['Enquiry', 'Counselling', 'Free Batch', 'Lead Conversion', 'Paid Batch', 'Admission']
+
+  const handleConvertSuccess = (student) => {
+    setShowConvertModal(false)
+    alert(`Successfully converted to student! Admission Number: ${student.admissionNumber}`)
+    onLeadUpdated()
+    onClose()
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -111,6 +117,16 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
             >
               <X className="w-6 h-6 text-white" />
             </button>
+
+            {lead.stage === 'Paid Batch' || lead.stage === 'Lead Conversion' ? (
+              <button
+                onClick={() => setShowConvertModal(true)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <UserCheck className="w-4 h-4" />
+                Convert to Student
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -124,19 +140,18 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
               {stages.map((stage, index) => {
                 const isActive = stage === lead.stage
                 const isPassed = stages.indexOf(lead.stage) > index
-                
+
                 return (
                   <div key={stage} className="flex items-center">
                     <button
                       onClick={() => handleStageChange(stage)}
                       disabled={loading}
-                      className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                          : isPassed
+                      className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${isActive
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                        : isPassed
                           ? 'bg-green-100 text-green-700'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {stage}
                     </button>
@@ -271,11 +286,10 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
                   <option value="Paid">Paid Batch</option>
                 </select>
               ) : (
-                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                  lead.batchType === 'Paid' 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-orange-100 text-orange-700'
-                }`}>
+                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${lead.batchType === 'Paid'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-orange-100 text-orange-700'
+                  }`}>
                   {lead.batchType}
                 </span>
               )}
@@ -320,8 +334,8 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
                 <div className="flex items-center gap-2 text-gray-900">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span>
-                    {lead.followUpDate 
-                      ? new Date(lead.followUpDate).toLocaleDateString() 
+                    {lead.followUpDate
+                      ? new Date(lead.followUpDate).toLocaleDateString()
                       : 'Not set'}
                   </span>
                 </div>
@@ -393,6 +407,13 @@ const LeadDetailsModal = ({ lead, onClose, onLeadUpdated }) => {
           </div>
         </div>
       </div>
+      {showConvertModal && (
+        <ConvertToStudentModal
+          lead={lead}
+          onClose={() => setShowConvertModal(false)}
+          onConverted={handleConvertSuccess}
+        />
+      )}
     </div>
   )
 }
