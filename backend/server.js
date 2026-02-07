@@ -3,6 +3,8 @@ const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
 const connectDB = require('./config/db')
+const studentAttendanceRoutes = require('./routes/studentAttendance');
+const batchRoutes = require('./routes/batches');
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -45,6 +47,8 @@ connectDB.connect().then(() => {
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/leads', require('./routes/leads'))
 app.use('/api/students',require('./routes/students'))
+app.use('/api/student-attendance', studentAttendanceRoutes);
+app.use('/api/batches', batchRoutes);
 
   // 404 Handler
   app.use((req, res) => {

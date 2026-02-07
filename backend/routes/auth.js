@@ -1,10 +1,5 @@
 const express = require('express')
-const {
-  registerUser,
-  loginUser, 
-  getDashboardStats,
-  getProfile
-} = require('../controllers/authController')
+const {registerUser,loginUser,getDashboardStats,getProfile} = require('../controllers/authController')
 const { validateRegister, validateLogin, handleValidation } = require('../middleware/validation')
 const { protect } = require('../middleware/auth')
 const router = express.Router()

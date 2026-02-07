@@ -5,6 +5,7 @@ import Sidebar from '../../components/layout/Sidebar'
 import Navbar from '../../components/layout/Navbar'
 import { Users, DollarSign, BookOpen, Calendar, GraduationCap } from 'lucide-react'
 
+
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
