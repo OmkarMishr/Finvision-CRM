@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar, Users, Clock, Filter, Download, 
-  CheckCircle, XCircle, AlertCircle, Plus, Search 
+  Calendar, Users, Clock, Download, 
+  CheckCircle, XCircle, AlertCircle, Plus, Search, RefreshCw 
 } from 'lucide-react';
 import axiosInstance from '../../config/axios';
-import { STUDENT_ATTENDANCE_ENDPOINTS, BATCH_ENDPOINTS } from '../../config/api';
+import { API_ENDPOINTS } from '../../config/api';
 import MarkStudentAttendanceModal from './MarkStudentAttendanceModal';
 import StudentAttendanceDetailsModal from './StudentAttendanceDetailsModal';
 
@@ -44,12 +44,13 @@ const StudentAttendanceManagement = () => {
       });
 
       const response = await axiosInstance.get(
-        `${STUDENT_ATTENDANCE_ENDPOINTS.GET_ALL}?${queryParams}`
+        `${API_ENDPOINTS.studentAttendance.getAll}?${queryParams}`
       );
       
-      setAttendance(response.data.data);
+      setAttendance(response.data.data || []);
     } catch (error) {
       console.error('Error fetching attendance:', error);
+      setAttendance([]);
     } finally {
       setLoading(false);
     }
@@ -57,10 +58,11 @@ const StudentAttendanceManagement = () => {
 
   const fetchBatches = async () => {
     try {
-      const response = await axiosInstance.get(BATCH_ENDPOINTS.GET_ALL);
-      setBatches(response.data.data);
+      const response = await axiosInstance.get(API_ENDPOINTS.batches.getAll);
+      setBatches(response.data.data || []);
     } catch (error) {
       console.error('Error fetching batches:', error);
+      setBatches([]);
     }
   };
 
@@ -72,11 +74,19 @@ const StudentAttendanceManagement = () => {
       if (filters.branch) queryParams.append('branch', filters.branch);
       
       const response = await axiosInstance.get(
-        `${STUDENT_ATTENDANCE_ENDPOINTS.STATISTICS}?${queryParams}`
+        `${API_ENDPOINTS.studentAttendance.statistics}?${queryParams}`
       );
       setStats(response.data.data);
     } catch (error) {
       console.error('Error fetching statistics:', error);
+      setStats({
+        total: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        halfDay: 0,
+        presentPercentage: 0
+      });
     }
   };
 
@@ -144,7 +154,20 @@ const StudentAttendanceManagement = () => {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Student Attendance Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Student Attendance Management</h1>
+          <p className="text-gray-600 text-sm mt-1">Track and manage student attendance records</p>
+        </div>
+        <button
+          onClick={() => {
+            fetchAttendance();
+            fetchStatistics();
+          }}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
 
       {/* Statistics Cards */}
@@ -343,13 +366,18 @@ const StudentAttendanceManagement = () => {
               {loading ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                     Loading...
                   </td>
                 </tr>
               ) : filteredAttendance.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
-                    No attendance records found
+                  <td colSpan="8" className="px-6 py-12 text-center">
+                    <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">No attendance records found</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {searchTerm ? 'Try adjusting your search' : 'Mark attendance to see records here'}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -412,7 +440,7 @@ const StudentAttendanceManagement = () => {
         {filteredAttendance.length > 0 && (
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
             <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{filteredAttendance.length}</span> records
+              Showing <span className="font-medium">{filteredAttendance.length}</span> record{filteredAttendance.length !== 1 ? 's' : ''}
             </p>
           </div>
         )}

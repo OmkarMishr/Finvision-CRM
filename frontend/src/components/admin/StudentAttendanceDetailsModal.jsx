@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, Trash2, Loader } from 'lucide-react';
 import axiosInstance from '../../config/axios';
-import { STUDENT_ATTENDANCE_ENDPOINTS } from '../../config/api';
+import { API_ENDPOINTS } from '../../config/api';
 
 const StudentAttendanceDetailsModal = ({ attendance, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ const StudentAttendanceDetailsModal = ({ attendance, onClose, onUpdate }) => {
     setLoading(true);
     try {
       await axiosInstance.put(
-        STUDENT_ATTENDANCE_ENDPOINTS.UPDATE(attendance._id),
+        API_ENDPOINTS.studentAttendance.update(attendance._id),
         formData
       );
       
@@ -37,7 +37,7 @@ const StudentAttendanceDetailsModal = ({ attendance, onClose, onUpdate }) => {
 
     setLoading(true);
     try {
-      await axiosInstance.delete(STUDENT_ATTENDANCE_ENDPOINTS.DELETE(attendance._id));
+      await axiosInstance.delete(API_ENDPOINTS.studentAttendance.delete(attendance._id));
       
       alert('Attendance deleted successfully!');
       onUpdate();

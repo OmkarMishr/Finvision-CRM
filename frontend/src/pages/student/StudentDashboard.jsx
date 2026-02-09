@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 import Sidebar from '../../components/layout/Sidebar'
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
+import StudentAttendanceView from '../../components/student/StudentAttendanceView'
 
 const StudentDashboard = () => {
   const { user } = useAuth()
@@ -30,6 +31,7 @@ const StudentDashboard = () => {
         
         // Format the data
         setStudentData({
+          _id: student._id, // Important: Store the ID for StudentAttendanceView
           admissionNumber: student.admissionNumber,
           fullName: student.fullName,
           email: student.email || user?.email,
@@ -67,6 +69,7 @@ const StudentDashboard = () => {
       
       // Keep mock data as fallback for development
       setStudentData({
+        _id: null, // No ID available
         admissionNumber: 'Not Assigned',
         fullName: user?.name || 'Student Name',
         email: user?.email || 'student@example.com',
@@ -494,7 +497,29 @@ const StudentDashboard = () => {
                 </div>
               )}
 
-              {activeTab !== 'overview' && activeTab !== 'details' && (
+              {/* Student Attendance Tab */}
+              {activeTab === 'attendance' && (
+                <div>
+                  {studentData._id ? (
+                    <StudentAttendanceView studentId={studentData._id} />
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <Calendar className="w-10 h-10 text-yellow-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Linked</h3>
+                      <p className="text-gray-500 text-sm max-w-md mx-auto">
+                        Your account is not linked to a student profile yet. Please contact the administration to link your account.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Other tabs - Coming Soon */}
+              {activeTab !== 'overview' && 
+               activeTab !== 'details' && 
+               activeTab !== 'attendance' && (
                 <ComingSoonPlaceholder activeTab={activeTab} tabs={tabs} />
               )}
             </div>

@@ -35,29 +35,43 @@ export const API_ENDPOINTS = {
   },
 
   // Student Attendance endpoints
-  STUDENT_ATTENDANCE_ENDPOINTS: {
-    MARK_SINGLE: '/student-attendance/mark',
-    MARK_BATCH: '/student-attendance/mark-batch',
-    GET_ALL: '/student-attendance',
-    GET_BY_STUDENT: (studentId) => `/student-attendance/student/${studentId}`,
-    GET_BY_DATE: (date) => `/student-attendance/date/${date}`,
-    GET_BY_BATCH: (batchId) => `/student-attendance/batch/${batchId}`,
-    UPDATE: (id) => `/student-attendance/${id}`,
-    DELETE: (id) => `/student-attendance/${id}`,
-    STATISTICS: '/student-attendance/stats/overview'
+  studentAttendance: {
+    markSingle: `${API_URL}/api/student-attendance/mark`,
+    markBatch: `${API_URL}/api/student-attendance/mark-batch`,
+    getAll: `${API_URL}/api/student-attendance`,
+    byStudent: (studentId) => `${API_URL}/api/student-attendance/student/${studentId}`,
+    byDate: (date) => `${API_URL}/api/student-attendance/date/${date}`,
+    byBatch: (batchId) => `${API_URL}/api/student-attendance/batch/${batchId}`,
+    update: (id) => `${API_URL}/api/student-attendance/${id}`,
+    delete: (id) => `${API_URL}/api/student-attendance/${id}`,
+    statistics: `${API_URL}/api/student-attendance/stats/overview`
   },
 
   // Batch endpoints
-  BATCH_ENDPOINTS: {
-    CREATE: '/batches',
-    GET_ALL: '/batches',
-    GET_ONE: (id) => `/batches/${id}`,
-    UPDATE: (id) => `/batches/${id}`,
-    DELETE: (id) => `/batches/${id}`,
-    ENROLL: (id) => `/batches/${id}/enroll`,
-    REMOVE_STUDENT: (id) => `/batches/${id}/remove-student`,
-    STATISTICS: '/batches/stats/overview'
+  batches: {
+    create: `${API_URL}/api/batches`,
+    getAll: `${API_URL}/api/batches`,
+    getOne: (id) => `${API_URL}/api/batches/${id}`,
+    update: (id) => `${API_URL}/api/batches/${id}`,
+    delete: (id) => `${API_URL}/api/batches/${id}`,
+    enroll: (id) => `${API_URL}/api/batches/${id}/enroll`,
+    removeStudent: (id) => `${API_URL}/api/batches/${id}/remove-student`,
+    statistics: `${API_URL}/api/batches/stats/overview`
   },
+
+  // Admin endpoints
+  admin: {
+    backup: `${API_URL}/api/admin/backup`,
+    restore: `${API_URL}/api/admin/restore`,
+    dashboardStats: `${API_URL}/api/admin/dashboard-stats`
+  }
 }
+
+// Legacy exports for backward compatibility (if needed)
+export const STUDENT_ATTENDANCE_ENDPOINTS = API_ENDPOINTS.studentAttendance
+export const BATCH_ENDPOINTS = API_ENDPOINTS.batches
+export const LEAD_ENDPOINTS = API_ENDPOINTS.leads
+export const STUDENT_ENDPOINTS = API_ENDPOINTS.students
+export const ADMIN_ENDPOINTS = API_ENDPOINTS.admin
 
 export default API_URL

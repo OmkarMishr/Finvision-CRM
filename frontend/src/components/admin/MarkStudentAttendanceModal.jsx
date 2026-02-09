@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, Loader } from 'lucide-react';
 import axiosInstance from '../../config/axios';
-import { STUDENT_ATTENDANCE_ENDPOINTS, BATCH_ENDPOINTS, STUDENT_ENDPOINTS } from '../../config/api';
+import { API_ENDPOINTS } from '../../config/api';
 
 const MarkStudentAttendanceModal = ({ onClose, onSuccess, batches }) => {
   const [mode, setMode] = useState('single'); // 'single' or 'batch'
@@ -58,10 +58,11 @@ const MarkStudentAttendanceModal = ({ onClose, onSuccess, batches }) => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axiosInstance.get(STUDENT_ENDPOINTS.GET_ALL);
-      setStudents(response.data.data);
+      const response = await axiosInstance.get(API_ENDPOINTS.students.base);
+      setStudents(response.data.data || []);
     } catch (error) {
       console.error('Error fetching students:', error);
+      setStudents([]);
     }
   };
 
@@ -70,7 +71,7 @@ const MarkStudentAttendanceModal = ({ onClose, onSuccess, batches }) => {
     setLoading(true);
 
     try {
-      await axiosInstance.post(STUDENT_ATTENDANCE_ENDPOINTS.MARK_SINGLE, {
+      await axiosInstance.post(API_ENDPOINTS.studentAttendance.markSingle, {
         ...formData,
         ...singleStudent
       });
@@ -89,7 +90,7 @@ const MarkStudentAttendanceModal = ({ onClose, onSuccess, batches }) => {
     setLoading(true);
 
     try {
-      const response = await axiosInstance.post(STUDENT_ATTENDANCE_ENDPOINTS.MARK_BATCH, {
+      const response = await axiosInstance.post(API_ENDPOINTS.studentAttendance.markBatch, {
         ...formData,
         students: batchStudents.map(s => ({
           studentId: s.studentId,
@@ -349,7 +350,7 @@ const MarkStudentAttendanceModal = ({ onClose, onSuccess, batches }) => {
                     <option value="">Choose a batch</option>
                     {batches.map(batch => (
                       <option key={batch._id} value={batch._id}>
-                        {batch.batchName} - {batch.batchType} ({batch.enrolledStudents.length} students)
+                        {batch.batchName} - {batch.batchType} ({batch.enrolledStudents?.length || 0} students)
                       </option>
                     ))}
                   </select>
