@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { 
-  Users, CheckCircle, XCircle, TrendingUp, Menu, Bell,
+import { Users, CheckCircle, XCircle, TrendingUp, Menu, Bell,
   UserPlus, PhoneCall, MessageSquare, Calendar, DollarSign,
   Filter, Download, FileSpreadsheet
 } from 'lucide-react'
@@ -32,28 +31,41 @@ const StaffDashboard = () => {
   const fetchStats = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('fv_token')
-      const response = await axiosInstance.get(API_ENDPOINTS.leads.stats, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const data = response.data.stats
-
-      // Process stats
-      const freeCount = data.byBatchType.find(b => b._id === 'Free')?.count || 0
-      const paidCount = data.byBatchType.find(b => b._id === 'Paid')?.count || 0
-      const totalConverted = data.totalConverted[0]?.count || 0
-      const totalRev = data.totalRevenue[0]?.total || 0
-
-      setStats({
-        totalLeads: freeCount + paidCount,
+      
+      const response = await axiosInstance.get(API_ENDPOINTS.leads.stats)
+      const data = response.data.data || response.data.stats || response.data || {}
+  
+      const byBatchType = data.byBatchType || {}
+      const freeCount = byBatchType['Free'] || byBatchType['free'] || 0
+      const paidCount = byBatchType['Paid'] || byBatchType['paid'] || 0
+      
+      // Total leads from backend
+      const totalLeads = data.totalLeads || 0
+      
+      // Conversions and revenue
+      const totalConverted = data.totalConverted || 0
+      const totalRev = data.totalRevenue || 0
+  
+      const statsData = {
+        totalLeads: totalLeads,
         freeLeads: freeCount,
         paidLeads: paidCount,
         conversions: totalConverted,
         revenue: totalRev
-      })
+      }
+      setStats(statsData)
     } catch (error) {
-      console.error('Error fetching stats:', error)
+      console.error('❌ Error fetching staff stats:', error)
+      console.error('❌ Error response:', error.response?.data)
+      
+      // Set default values on error
+      setStats({
+        totalLeads: 0,
+        freeLeads: 0,
+        paidLeads: 0,
+        conversions: 0,
+        revenue: 0
+      })
     } finally {
       setLoading(false)
     }

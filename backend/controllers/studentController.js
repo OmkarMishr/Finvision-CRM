@@ -53,6 +53,24 @@ const getStudentStats = async (req, res) => {
       matchQuery.assignedCounselor = req.user.userId;
     }
 
+    const totalStudents = await Student.countDocuments(matchQuery);
+
+    // If no students, return empty stats
+    if (totalStudents === 0) {
+      return res.json({ 
+        success: true,
+        data: {  
+          totalStudents: 0,
+          byStatus: {},
+          byBatchType: {},
+          byCourse: {},
+          totalPending: 0,
+          totalCollected: 0,
+          averageAttendance: 0
+        }
+      });
+    }
+
     const stats = await Student.aggregate([
       { $match: matchQuery },
       {
@@ -79,18 +97,43 @@ const getStudentStats = async (req, res) => {
       }
     ]);
 
+    const byStatus = {};
+    stats[0].byStatus.forEach(item => {
+      byStatus[item._id] = item.count;
+    });
+
+    const byBatchType = {};
+    stats[0].byBatchType.forEach(item => {
+      byBatchType[item._id] = item.count;
+    });
+
+    const byCourse = {};
+    stats[0].byCourse.forEach(item => {
+      byCourse[item._id] = item.count;
+    });
+
+    const formattedStats = {
+      totalStudents,
+      byStatus,
+      byBatchType,
+      byCourse,
+      totalPending: stats[0].totalPending[0]?.total || 0,
+      totalCollected: stats[0].totalCollected[0]?.total || 0,
+      averageAttendance: stats[0].averageAttendance[0]?.avg || 0
+    };
+
     res.json({ 
       success: true,
-      stats: stats[0] 
+      data: formattedStats 
     });
   } catch (error) {
-    console.error('Get stats error:', error);
     res.status(500).json({ 
       success: false,
       message: 'Server error' 
     });
   }
 };
+
 
 // @desc    Convert lead to student
 // @route   POST /api/students/convert-from-lead/:leadId

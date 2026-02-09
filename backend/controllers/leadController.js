@@ -237,6 +237,26 @@ const getLeadStats = async (req, res) => {
       }
     }
 
+    // Get total count
+    const totalLeads = await Lead.countDocuments(matchQuery);
+
+    // If no leads, return empty stats
+    if (totalLeads === 0) {
+      return res.json({ 
+        success: true,
+        data: {  
+          totalLeads: 0,
+          byStage: {},
+          byBatchType: {},
+          byLeadSource: {},
+          totalConverted: 0,
+          conversionRate: 0,
+          totalRevenue: 0,
+          formattedRevenue: '₹0'
+        }
+      });
+    }
+
     const stats = await Lead.aggregate([
       { $match: matchQuery },
       {
@@ -246,6 +266,9 @@ const getLeadStats = async (req, res) => {
           ],
           byBatchType: [
             { $group: { _id: '$batchType', count: { $sum: 1 } } }
+          ],
+          byLeadSource: [
+            { $group: { _id: '$leadSource', count: { $sum: 1 } } }
           ],
           totalConverted: [
             { $match: { convertedToPaid: true } },
@@ -257,19 +280,49 @@ const getLeadStats = async (req, res) => {
         }
       }
     ]);
+    const byStage = {};
+    stats[0].byStage.forEach(item => {
+      byStage[item._id] = item.count;
+    });
+
+    const byBatchType = {};
+    stats[0].byBatchType.forEach(item => {
+      byBatchType[item._id] = item.count;
+    });
+
+    const byLeadSource = {};
+    stats[0].byLeadSource.forEach(item => {
+      byLeadSource[item._id] = item.count;
+    });
+
+    const totalConverted = stats[0].totalConverted[0]?.count || 0;
+    const totalRevenue = stats[0].totalRevenue[0]?.total || 0;
+    const conversionRate = totalLeads > 0 ? ((totalConverted / totalLeads) * 100).toFixed(2) : 0;
+
+    const formattedStats = {
+      totalLeads,
+      byStage,
+      byBatchType,
+      byLeadSource,
+      totalConverted,
+      conversionRate: parseFloat(conversionRate),
+      totalRevenue,
+      formattedRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`
+    };
 
     res.json({ 
       success: true,
-      stats: stats[0] 
+      data: formattedStats,
     });
   } catch (error) {
-    console.error('Get stats error:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Server error' 
+      message: 'Failed to fetch lead statistics',
+      error: error.message
     });
   }
 };
+
 
 module.exports = {
   getAllLeads,

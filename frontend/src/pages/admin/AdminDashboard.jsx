@@ -200,37 +200,27 @@ const AdminDashboard = () => {
 
   const fetchAttendanceStats = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Use the correct statistics endpoint
       const response = await axiosInstance.get(
-        `${API_ENDPOINTS.studentAttendance.getAll}?date=${today}`
+        API_ENDPOINTS.studentAttendance.statistics
       );
       
-      let attendance = [];
+
       
-      if (Array.isArray(response.data)) {
-        attendance = response.data;
-      } else if (Array.isArray(response.data.data)) {
-        attendance = response.data.data;
-      } else {
-        attendance = [];
-      }
-
-      const total = attendance.length;
-      const present = attendance.filter(a => a.status === 'Present' || a.status === 'Late').length;
-      const absent = attendance.filter(a => a.status === 'Absent').length;
-      const percentage = total > 0 ? ((present / total) * 100).toFixed(2) : 0;
-
+      // Handle different response structures
+      const statsData = response.data?.data || response.data || {};
+      
       setDashboardStats(prev => ({
         ...prev,
         attendance: {
-          today: total,
-          present,
-          absent,
-          percentage
+          today: statsData.total || 0,
+          present: statsData.present || 0,
+          absent: statsData.absent || 0,
+          percentage: parseFloat(statsData.presentPercentage || 0)
         }
       }));
     } catch (error) {
-      console.error('Error fetching attendance stats:', error);
+      console.error('❌ Error fetching attendance stats:', error.response?.data || error.message);
       setDashboardStats(prev => ({
         ...prev,
         attendance: {
