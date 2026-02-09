@@ -5,6 +5,7 @@ const morgan = require('morgan')
 const connectDB = require('./config/db')
 const studentAttendanceRoutes = require('./routes/studentAttendance');
 const batchRoutes = require('./routes/batches');
+const adminRoutes = require('./routes/admin');
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -49,6 +50,8 @@ app.use('/api/leads', require('./routes/leads'))
 app.use('/api/students',require('./routes/students'))
 app.use('/api/student-attendance', studentAttendanceRoutes);
 app.use('/api/batches', batchRoutes);
+app.use('/api/admin', adminRoutes);
+
 
   // 404 Handler
   app.use((req, res) => {

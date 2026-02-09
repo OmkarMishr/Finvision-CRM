@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginTypeSelector from '../pages/Auth/LoginTypeSelector'
 import Login from '../pages/Auth/Login'
 import DashboardLayout from '../components/layout/DashboardLayout'
-import Dashboard from '../pages/Dashboard/Dashboard'
+import AdminDashboard from '../pages/admin/AdminDashboard'
 import StudentDashboard from '../pages/student/StudentDashboard'
 import StaffDashboard from '../pages/staff/StaffDashboard'
 import { useAuth } from '../context/AuthContext'
@@ -46,6 +46,7 @@ const PrivateRoute = ({ children, allowedRoles = [] }) => {
   return children
 }
 
+
 // PublicRoute Component - Redirects authenticated users to their dashboard
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading, userRole } = useAuth()
@@ -79,6 +80,7 @@ const PublicRoute = ({ children }) => {
   return children
 }
 
+
 // Catch-all redirect based on authentication and role
 const CatchAllRedirect = () => {
   const { isAuthenticated, userRole } = useAuth()
@@ -99,6 +101,7 @@ const CatchAllRedirect = () => {
       return <Navigate to="/" replace />
   }
 }
+
 
 const AppRoutes = () => (
   <Routes>
@@ -130,7 +133,8 @@ const AppRoutes = () => (
         </PrivateRoute>
       }
     >
-      <Route index element={<Dashboard />} />
+      {/* Admin Dashboard  */}
+      <Route index element={<AdminDashboard />} />
       {/* Add more admin routes here if needed */}
     </Route>
 
