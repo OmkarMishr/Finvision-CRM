@@ -1,4 +1,4 @@
-import { Menu, Users, DollarSign, Calendar, BookOpen, Award, Video, Users2, Settings, LogOut, UserCheck } from 'lucide-react'
+import { Menu, Users, DollarSign, Calendar, BookOpen, Award, Video, Users2, Settings, LogOut, UserCheck, ClipboardCheck } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -8,10 +8,11 @@ const Sidebar = ({ isOpen, onClose }) => {
   const { logout } = useAuth()
 
   const menuItems = [
-    { icon: Menu, label: 'Dashboard', href: '/admin/dashboard' },
+    { icon: Menu, label: 'Dashboard', href: '/dashboard' },
     { icon: Users, label: 'Student Management', href: '/admin/students' },
     { icon: Users2, label: 'Staff Management', href: '/admin/staff' },
     { icon: DollarSign, label: 'Fee Collection', href: '/admin/fee' },
+    { icon: ClipboardCheck, label: 'Attendance', href: '/dashboard/attendance' },
     { icon: UserCheck, label: 'Student Attendance', href: '/admin/student-attendance' },
     { icon: Calendar, label: 'Staff Attendance', href: '/admin/staff-attendance' },
     { icon: BookOpen, label: 'Library', href: '/admin/library' },

@@ -5,6 +5,7 @@ import DashboardLayout from '../components/layout/DashboardLayout'
 import AdminDashboard from '../pages/admin/AdminDashboard'
 import StudentDashboard from '../pages/student/StudentDashboard'
 import StaffDashboard from '../pages/staff/StaffDashboard'
+import AttendanceManagement from '../pages/admin/AttendanceManagement'
 import { useAuth } from '../context/AuthContext'
 
 // PrivateRoute Component with Role-Based Access Control
@@ -136,6 +137,7 @@ const AppRoutes = () => (
       {/* Admin Dashboard  */}
       <Route index element={<AdminDashboard />} />
       {/* Add more admin routes here if needed */}
+      <Route path="attendance" element={<AttendanceManagement />} />
     </Route>
 
     {/* STAFF ROUTES - Staff Dashboard (No Layout) */}
