@@ -46,7 +46,16 @@ export const API_ENDPOINTS = {
     delete: (id) => `${API_URL}/api/student-attendance/${id}`,
     statistics: `${API_URL}/api/student-attendance/stats/overview`
   },
-
+  // Staff Attendance endpoints
+  staffAttendance: {
+    checkIn: `${API_URL}/api/staff-attendance/check-in`,
+    checkOut: `${API_URL}/api/staff-attendance/check-out`,
+    myAttendance: `${API_URL}/api/staff-attendance/my-attendance`,
+    today: `${API_URL}/api/staff-attendance/today`,
+    getAll: `${API_URL}/api/staff-attendance`,
+    stats: `${API_URL}/api/staff-attendance/stats/overview`
+  },
+  
   // Batch endpoints
   batches: {
     create: `${API_URL}/api/batches`,

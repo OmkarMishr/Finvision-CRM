@@ -4,6 +4,7 @@ const cors = require('cors')
 const morgan = require('morgan')
 const connectDB = require('./config/db')
 const studentAttendanceRoutes = require('./routes/studentAttendance');
+const staffAttendanceRoutes = require('./routes/staffAttendance');
 const batchRoutes = require('./routes/batches');
 const adminRoutes = require('./routes/admin');
 
@@ -49,6 +50,7 @@ app.use('/api/auth', require('./routes/auth'))
 app.use('/api/leads', require('./routes/leads'))
 app.use('/api/students',require('./routes/students'))
 app.use('/api/student-attendance', studentAttendanceRoutes);
+app.use('/api/staff-attendance', staffAttendanceRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/admin', adminRoutes);
 

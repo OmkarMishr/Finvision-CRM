@@ -41,9 +41,16 @@ const studentAttendanceSchema = new mongoose.Schema({
   remarks: {
     type: String
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  markedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  location: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    branchName: { type: String },
+    distance: { type: Number } // Distance from branch in meters
   }
 }, {
   timestamps: true

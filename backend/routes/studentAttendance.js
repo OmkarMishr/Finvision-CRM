@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const {markAttendance,markBatchAttendance,getAllAttendance,getStudentAttendance,getAttendanceByDate,updateAttendance,deleteAttendance,getAttendanceStats,getBatchAttendance} = require('../controllers/studentAttendanceController');
+const {markSelfAttendance,markAttendance,markBatchAttendance,getAllAttendance,getStudentAttendance,getAttendanceByDate,updateAttendance,deleteAttendance,getAttendanceStats,getBatchAttendance} = require('../controllers/studentAttendanceController');
 const { protect, authorize } = require('../middleware/auth');
 
 router.get('/stats/overview', protect, authorize('admin', 'staff'), getAttendanceStats);
+router.post('/mark-self', protect, authorize('student'), markSelfAttendance);
 router.post('/mark', protect, authorize('admin', 'staff'), markAttendance);
 router.post('/mark-batch', protect, authorize('admin', 'staff'), markBatchAttendance);
 router.get('/', protect, authorize('admin', 'staff'), getAllAttendance);
