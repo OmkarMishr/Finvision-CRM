@@ -67,6 +67,12 @@ export const API_ENDPOINTS = {
     removeStudent: (id) => `${API_URL}/api/batches/${id}/remove-student`,
     statistics: `${API_URL}/api/batches/stats/overview`
   },
+  //Certificate Endpoints
+   certificates: {
+    eligibility: `${API_URL}/api/certificates/eligibility`,
+    download: `${API_URL}/api/certificates/download`,
+    getAll: `${API_URL}/api/certificates`,
+  },
 
   // Admin endpoints
   admin: {

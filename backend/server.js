@@ -7,6 +7,7 @@ const studentAttendanceRoutes = require('./routes/studentAttendance');
 const staffAttendanceRoutes = require('./routes/staffAttendance');
 const batchRoutes = require('./routes/batches');
 const adminRoutes = require('./routes/admin');
+const certificate =  require('./routes/certificates');
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -53,6 +54,7 @@ app.use('/api/student-attendance', studentAttendanceRoutes);
 app.use('/api/staff-attendance', staffAttendanceRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/certificates',certificate);
 
 
   // 404 Handler

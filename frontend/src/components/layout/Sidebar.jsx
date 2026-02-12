@@ -16,7 +16,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: UserCheck, label: 'Student Attendance', href: '/admin/student-attendance' },
     { icon: Calendar, label: 'Staff Attendance', href: '/admin/staff-attendance' },
     { icon: BookOpen, label: 'Library', href: '/admin/library' },
-    { icon: Award, label: 'Certificates', href: '/admin/certificates' },
+    { icon: Award, label: 'Certificates', href: '/admin/certificates' }, 
     { icon: Video, label: 'Live Classes', href: '/admin/classes' },
     { icon: Users, label: 'Front Office', href: '/admin/office' },
     { icon: Settings, label: 'Settings', href: '/admin/settings' }

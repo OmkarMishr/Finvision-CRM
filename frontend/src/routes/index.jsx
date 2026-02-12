@@ -6,6 +6,7 @@ import AdminDashboard from '../pages/admin/AdminDashboard'
 import StudentDashboard from '../pages/student/StudentDashboard'
 import StaffDashboard from '../pages/staff/StaffDashboard'
 import AttendanceManagement from '../pages/admin/AttendanceManagement'
+import CertificatesManagement from '../components/admin/CertificatesManagement'
 import { useAuth } from '../context/AuthContext'
 
 // PrivateRoute Component with Role-Based Access Control
@@ -47,7 +48,6 @@ const PrivateRoute = ({ children, allowedRoles = [] }) => {
   return children
 }
 
-
 // PublicRoute Component - Redirects authenticated users to their dashboard
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading, userRole } = useAuth()
@@ -81,7 +81,6 @@ const PublicRoute = ({ children }) => {
   return children
 }
 
-
 // Catch-all redirect based on authentication and role
 const CatchAllRedirect = () => {
   const { isAuthenticated, userRole } = useAuth()
@@ -102,7 +101,6 @@ const CatchAllRedirect = () => {
       return <Navigate to="/" replace />
   }
 }
-
 
 const AppRoutes = () => (
   <Routes>
@@ -134,11 +132,21 @@ const AppRoutes = () => (
         </PrivateRoute>
       }
     >
-      {/* Admin Dashboard  */}
+      {/* Admin Dashboard */}
       <Route index element={<AdminDashboard />} />
       {/* Add more admin routes here if needed */}
       <Route path="attendance" element={<AttendanceManagement />} />
     </Route>
+
+    {/* CERTIFICATES ROUTE - MOVED OUTSIDE (FLAT STRUCTURE) */}
+    <Route
+      path="/admin/certificates"
+      element={
+        <PrivateRoute allowedRoles={['admin']}>
+          <CertificatesManagement />
+        </PrivateRoute>
+      }
+    />
 
     {/* STAFF ROUTES - Staff Dashboard (No Layout) */}
     <Route
