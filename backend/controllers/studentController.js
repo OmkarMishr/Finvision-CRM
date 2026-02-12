@@ -2,6 +2,35 @@ const Student = require('../models/Student');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for profile photo upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/profiles/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'student-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
 
 // @desc    Get current student's profile (for logged-in students)
 // @route   GET /api/students/my-profile
@@ -38,6 +67,142 @@ const getMyProfile = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Server error' 
+    });
+  }
+};
+
+// Update student profile (editable fields only)
+// @route   PUT /api/students/update-profile
+// @access  Private (Student only)
+const updateMyProfile = async (req, res) => {
+  try {
+    // Check if user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only students can access this endpoint' 
+      });
+    }
+
+    const { dob, gender, fatherName, city, education } = req.body;
+
+    const student = await Student.findOne({ userId: req.user.userId });
+    
+    if (!student) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Student profile not found' 
+      });
+    }
+
+    // Only update allowed fields (students cannot change admission details)
+    if (dob) student.dob = dob;
+    if (gender) student.gender = gender;
+    if (fatherName) student.fatherName = fatherName;
+    if (city) student.city = city;
+    if (education) student.education = education;
+
+    await student.save();
+
+    res.json({ 
+      success: true,
+      message: 'Profile updated successfully',
+      student 
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message 
+    });
+  }
+};
+
+//  Upload profile photo
+// @route   POST /api/students/upload-photo
+// @access  Private (Student only)
+const uploadProfilePhoto = async (req, res) => {
+  try {
+    // Check if user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only students can access this endpoint' 
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'No file uploaded' 
+      });
+    }
+
+    const student = await Student.findOne({ userId: req.user.userId });
+    
+    if (!student) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Student profile not found' 
+      });
+    }
+
+    // Save photo path
+    student.profilePhoto = `/uploads/profiles/${req.file.filename}`;
+    await student.save();
+
+    res.json({ 
+      success: true,
+      message: 'Profile photo uploaded successfully',
+      photoUrl: student.profilePhoto 
+    });
+  } catch (error) {
+    console.error('Upload photo error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to upload photo',
+      error: error.message 
+    });
+  }
+};
+
+// Remove profile photo
+// @route   DELETE /api/students/remove-photo
+// @access  Private (Student only)
+const removeProfilePhoto = async (req, res) => {
+  try {
+    // Check if user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only students can access this endpoint' 
+      });
+    }
+
+    const student = await Student.findOne({ userId: req.user.userId });
+    
+    if (!student) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Student profile not found' 
+      });
+    }
+
+    // Remove photo path
+    student.profilePhoto = null;
+    await student.save();
+
+    res.json({ 
+      success: true,
+      message: 'Profile photo removed successfully'
+    });
+  } catch (error) {
+    console.error('Remove photo error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to remove photo',
+      error: error.message 
     });
   }
 };
@@ -524,6 +689,10 @@ const deleteStudent = async (req, res) => {
 
 module.exports = {
   getMyProfile,
+  updateMyProfile,
+  uploadProfilePhoto,
+  removeProfilePhoto,
+  upload,
   getStudentStats,
   convertFromLead,
   getAllStudents,

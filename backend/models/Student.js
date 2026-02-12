@@ -22,14 +22,6 @@ const studentSchema = new mongoose.Schema(
     age: {
       type: Number
     },
-    education: {
-      type: String,
-      trim: true
-    },
-    city: {
-      type: String,
-      trim: true
-    },
     occupation: {
       type: String,
       trim: true
@@ -153,24 +145,42 @@ const studentSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+
+    //Self-changable fields
+    dob: {
+      type: Date
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Other']
+    },
+    fatherName: {
+      type: String
+    },
+    city: {
+      type: String
+    },
+    education: {
+      type: String
+    },
+    profilePhoto: {
+      type: String,
+      default: null
     }
-  },
-  {
-    timestamps: true
-  }
-)
+  }, { timestamps: true });
 
 // Generate admission number before saving
-studentSchema.pre('save', async function() {
+studentSchema.pre('save', async function () {
   if (this.isNew && !this.admissionNumber) {
     const year = new Date().getFullYear()
     const count = await this.constructor.countDocuments()
     this.admissionNumber = `FV${year}${String(count + 1).padStart(4, '0')}`
   }
-  
+
   // Calculate pending fees
   this.pendingFees = this.totalFees - this.paidFees
-  
+
   // Calculate attendance percentage
   if (this.totalClasses > 0) {
     this.attendancePercentage = Math.round((this.attendedClasses / this.totalClasses) * 100)

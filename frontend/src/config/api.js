@@ -31,7 +31,10 @@ export const API_ENDPOINTS = {
     convertFromLead: (leadId) => `${API_URL}/api/students/convert-from-lead/${leadId}`,
     convertToPaid: (id) => `${API_URL}/api/students/${id}/convert-to-paid`,
     addNote: (id) => `${API_URL}/api/students/${id}/notes`,
-    updateStatus: (id) => `${API_URL}/api/students/${id}/status`
+    updateStatus: (id) => `${API_URL}/api/students/${id}/status`,
+    updateProfile: `${API_URL}/api/students/update-profile`,
+    removePhoto: `${API_URL}/api/students/remove-photo`,
+    uploadPhoto: `${API_URL}/api/students/upload-photo`,
   },
 
   // Student Attendance endpoints

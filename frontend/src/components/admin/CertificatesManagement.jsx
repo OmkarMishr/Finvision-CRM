@@ -18,12 +18,12 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../config/axios';
 import { API_ENDPOINTS } from '../../config/api';
-import Sidebar from '../layout/Sidebar'; // ✅ IMPORT SIDEBAR
+import Sidebar from '../layout/Sidebar'; 
 import { useAuth } from '../../context/AuthContext';
 
 const CertificatesManagement = () => {
   const { user } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false); // ✅ SIDEBAR STATE
+  const [sidebarOpen, setSidebarOpen] = useState(false); 
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

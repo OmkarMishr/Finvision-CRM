@@ -55,6 +55,7 @@ app.use('/api/staff-attendance', staffAttendanceRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/certificates',certificate);
+app.use('/uploads', express.static('uploads'));
 
 
   // 404 Handler
