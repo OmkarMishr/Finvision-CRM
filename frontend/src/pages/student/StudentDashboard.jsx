@@ -10,6 +10,7 @@ import StudentOverview from '../../components/student/StudentOverview'
 import StudentDetails from '../../components/student/StudentDetails'
 import StudentAttendanceTab from '../../components/student/StudentAttendanceTab'
 import StudentCertificate from '../../components/student/StudentCertificate'
+import StudentIDCard from '../../components/student/StudentIDCard'
 
 const StudentDashboard = () => {
   const { user } = useAuth()
@@ -104,7 +105,7 @@ const StudentDashboard = () => {
     { id: 'fees', label: 'Fees', icon: CreditCard },
     { id: 'attendance', label: 'Attendance', icon: Calendar },
     { id: 'certificate', label: 'Certificate', icon: Award },
-    { id: 'books', label: 'Books Issued', icon: BookOpen }
+    { id: 'idcard', label: 'ID Card', icon: CreditCard }
   ]
 
   if (loading) {
@@ -226,12 +227,14 @@ const StudentDashboard = () => {
               {activeTab === 'details' && <StudentDetails studentData={studentData} onDataUpdate={setStudentData} />}
               {activeTab === 'attendance' && <StudentAttendanceTab studentData={studentData} onAttendanceMarked={fetchStudentData} />}
               {activeTab === 'certificate' && <StudentCertificate studentData={studentData} />}
+              {activeTab === 'idcard' && <StudentIDCard studentData={studentData} />}
               
               {/* Coming Soon for other tabs */}
               {activeTab !== 'overview' && 
                activeTab !== 'details' && 
                activeTab !== 'attendance' && 
-               activeTab !== 'certificate' && (
+               activeTab !== 'certificate' &&
+               activeTab !== 'idcard' && (
                 <ComingSoonPlaceholder activeTab={activeTab} tabs={tabs} />
               )}
             </div>
