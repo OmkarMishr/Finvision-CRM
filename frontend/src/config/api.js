@@ -70,6 +70,17 @@ export const API_ENDPOINTS = {
     removeStudent: (id) => `${API_URL}/api/batches/${id}/remove-student`,
     statistics: `${API_URL}/api/batches/stats/overview`
   },
+
+  //fees Endpoints
+  fees: {
+    base: `${API_URL}/api/fees`,
+    collect: `${API_URL}/api/fees/collect`,            
+    history: (studentId) => `${API_URL}/api/fees/history/${studentId}`, // GET
+    pending: (studentId) => `${API_URL}/api/fees/pending/${studentId}`, // GET
+    receipt: (paymentId) => `${API_URL}/api/fees/receipt/${paymentId}`, // GET (PDF / HTML)
+    validateCoupon: `${API_URL}/api/fees/coupons/validate`,   // POST {code}
+    stats: `${API_URL}/api/fees/statistics`            // admin-level (revenue & conversion)
+  },
   //Certificate Endpoints
    certificates: {
     eligibility: `${API_URL}/api/certificates/eligibility`,

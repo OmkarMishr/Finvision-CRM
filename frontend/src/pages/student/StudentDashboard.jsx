@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from '../../config/api'
 //  Import modular components
 import StudentOverview from '../../components/student/StudentOverview'
 import StudentDetails from '../../components/student/StudentDetails'
+import StudentFees from '../../components/student/StudentFees';
 import StudentAttendanceTab from '../../components/student/StudentAttendanceTab'
 import StudentCertificate from '../../components/student/StudentCertificate'
 import StudentIDCard from '../../components/student/StudentIDCard'
@@ -228,10 +229,12 @@ const StudentDashboard = () => {
               {activeTab === 'attendance' && <StudentAttendanceTab studentData={studentData} onAttendanceMarked={fetchStudentData} />}
               {activeTab === 'certificate' && <StudentCertificate studentData={studentData} />}
               {activeTab === 'idcard' && <StudentIDCard studentData={studentData} />}
+              {activeTab === 'fees' && (<StudentFees studentData={studentData} />)}
               
               {/* Coming Soon for other tabs */}
               {activeTab !== 'overview' && 
-               activeTab !== 'details' && 
+               activeTab !== 'details' &&
+               activeTab === 'fees' && 
                activeTab !== 'attendance' && 
                activeTab !== 'certificate' &&
                activeTab !== 'idcard' && (

@@ -8,6 +8,8 @@ const staffAttendanceRoutes = require('./routes/staffAttendance');
 const batchRoutes = require('./routes/batches');
 const adminRoutes = require('./routes/admin');
 const certificate =  require('./routes/certificates');
+const feesRoutes = require('./routes/feesRoutes');
+const couponRoutes = require('./routes/couponRoutes');
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -49,7 +51,9 @@ connectDB.connect().then(() => {
   // Auth Routes
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/leads', require('./routes/leads'))
-app.use('/api/students',require('./routes/students'))
+app.use('/api/students',require('./routes/students'));
+app.use('/api/fees', feesRoutes);      
+app.use('/api/coupons', couponRoutes);
 app.use('/api/student-attendance', studentAttendanceRoutes);
 app.use('/api/staff-attendance', staffAttendanceRoutes);
 app.use('/api/batches', batchRoutes);

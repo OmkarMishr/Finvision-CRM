@@ -299,7 +299,6 @@ const getStudentStats = async (req, res) => {
   }
 };
 
-
 // @desc    Convert lead to student
 // @route   POST /api/students/convert-from-lead/:leadId
 // @access  Private
@@ -328,6 +327,42 @@ const convertFromLead = async (req, res) => {
     const year = new Date().getFullYear();
     const count = await Student.countDocuments();
     const admissionNumber = `FV${year}${String(count + 1).padStart(4, '0')}`;
+
+    // ✅ Get or create courseId
+    const Course = require('../models/Course');
+    let courseId = req.body.courseId;
+
+    if (!courseId) {
+      // Find course by category or create default
+      const courseCategory = req.body.courseCategory || lead.courseCategory || 'Basic';
+      
+      let course = await Course.findOne({ 
+        courseCategory, 
+        isActive: true 
+      });
+
+      // If course doesn't exist, create it with default fee
+      if (!course) {
+        const defaultFees = {
+          'Basic': 15000,
+          'Advanced': 25000,
+          'Basic + Advanced': 35000,
+          'Advisory': 10000
+        };
+
+        course = await Course.create({
+          courseCategory,
+          fee: defaultFees[courseCategory] || 15000,
+          duration: 3,
+          description: `${courseCategory} Trading Course`,
+          isActive: true
+        });
+
+        console.log('✅ Course auto-created:', course.courseCategory);
+      }
+
+      courseId = course._id;
+    }
 
     // Check if user account already exists with this email
     let userAccount = null;
@@ -374,6 +409,7 @@ const convertFromLead = async (req, res) => {
       batchSection: lead.batchSection,
       batchType: lead.batchType,
       courseCategory: lead.courseCategory,
+      courseId: courseId, // ✅ Add courseId here
       leadSource: lead.leadSource,
       convertedFromLead: lead._id,
       conversionDate: new Date(),
@@ -394,7 +430,8 @@ const convertFromLead = async (req, res) => {
 
     const populatedStudent = await Student.findById(student._id)
       .populate('assignedCounselor', 'firstName lastName email')
-      .populate('userId', 'firstName lastName email');
+      .populate('userId', 'firstName lastName email')
+      .populate('courseId', 'courseCategory fee duration'); // ✅ Populate courseId
 
     // Prepare response with login credentials if new user was created
     const response = {

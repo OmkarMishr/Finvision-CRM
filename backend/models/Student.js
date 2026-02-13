@@ -55,6 +55,11 @@ const studentSchema = new mongoose.Schema(
       enum: ['Basic', 'Advanced', 'Basic + Advanced', 'Advisory'],
       required: true
     },
+    courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    required: true
+  },
 
     // Lead Source
     leadSource: {
