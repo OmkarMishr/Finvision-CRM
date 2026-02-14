@@ -179,7 +179,7 @@ const StudentIDCard = ({ studentData }) => {
                     <img
                       src={`${import.meta.env.VITE_API_URL}${studentData.profilePhoto}`}
                       alt="Student"
-                      className="w-28 h-28 rounded-xl object-cover border-4 border-white shadow-xl"
+                      className="w-28 h-28 rounded-xl border-4 border-white shadow-xl"
                     />
                   ) : (
                     <div className="w-28 h-28 bg-white rounded-xl flex items-center justify-center border-4 border-white shadow-xl">

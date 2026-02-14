@@ -136,7 +136,7 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
                 <img
                   src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${studentData.profilePhoto}`}
                   alt="Profile"
-                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover shadow-xl border-4 border-white"
+                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl shadow-xl border-4 border-white"
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextSibling.style.display = 'flex';

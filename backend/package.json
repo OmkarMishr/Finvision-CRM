@@ -19,6 +19,7 @@
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.3.1",
     "fs": "^0.0.1-security",
+    "fs-extra": "^11.3.3",
     "helmet": "^8.1.0",
     "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.3",

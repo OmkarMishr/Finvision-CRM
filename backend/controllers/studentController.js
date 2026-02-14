@@ -3,6 +3,7 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
+const { studentProfileUpload } = require('../middleware/multerConfig');
 const path = require('path');
 
 // Configure multer for profile photo upload
@@ -206,6 +207,53 @@ const removeProfilePhoto = async (req, res) => {
     });
   }
 };
+exports.updateStudentPhoto = [
+  studentProfileUpload,
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded'
+        });
+      }
+
+      const studentId = req.params.id || req.user.studentId;
+      const student = await Student.findById(studentId);
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      // Delete old photo if exists
+      if (student.photo && student.photo !== 'default-avatar.jpg') {
+        const oldPhotoPath = path.join(__dirname, '../uploads/profiles', student.photo);
+        await fs.remove(oldPhotoPath).catch(err => {
+          console.log('Old photo delete error:', err.message);
+        });
+      }
+
+      // Update with new photo
+      student.photo = req.file.filename;
+      await student.save();
+
+      res.json({
+        success: true,
+        message: 'Photo updated successfully',
+        photoUrl: `${process.env.BASE_URL}/uploads/profiles/${req.file.filename}`
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Upload failed'
+      });
+    }
+  }
+];
 
 // @desc    Get student statistics
 // @route   GET /api/students/stats/overview

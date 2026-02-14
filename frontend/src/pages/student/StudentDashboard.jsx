@@ -174,7 +174,7 @@ const StudentDashboard = () => {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-3xl">👋</span>
+                  <span className="text-3xl"></span>
                   <h1 className="text-2xl sm:text-3xl font-bold">Welcome, {studentData.fullName}!</h1>
                 </div>
                 <p className="text-indigo-100 text-sm sm:text-base mb-3">

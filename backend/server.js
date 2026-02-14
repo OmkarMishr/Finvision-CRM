@@ -2,6 +2,8 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
+const fs = require('fs-extra');
+const path = require('path');
 const connectDB = require('./config/db')
 const studentAttendanceRoutes = require('./routes/studentAttendance');
 const staffAttendanceRoutes = require('./routes/staffAttendance');
@@ -14,8 +16,28 @@ const couponRoutes = require('./routes/couponRoutes');
 const app = express()
 const PORT = process.env.PORT || 5000
 
+// MULTER DIRECTORY INITIALIZER
+const initializeUploadDirs = async () => {
+  const dirs = [
+    'uploads',
+    'uploads/profiles',
+    'uploads/staff-profiles',
+    'uploads/certificates'
+  ];
+
+  for (const dir of dirs) {
+    try {
+      await fs.ensureDir(path.join(__dirname, dir));
+    } catch (error) {
+      console.error(`Failed to create ${dir}:`, error.message);
+    }
+  }
+};
+
 // Connecting to DB
-connectDB.connect().then(() => {
+connectDB.connect().then(async () => {
+  await initializeUploadDirs();
+  
   // Middleware 
   app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -49,18 +71,17 @@ connectDB.connect().then(() => {
   })
 
   // Auth Routes
-app.use('/api/auth', require('./routes/auth'))
-app.use('/api/leads', require('./routes/leads'))
-app.use('/api/students',require('./routes/students'));
-app.use('/api/fees', feesRoutes);      
-app.use('/api/coupons', couponRoutes);
-app.use('/api/student-attendance', studentAttendanceRoutes);
-app.use('/api/staff-attendance', staffAttendanceRoutes);
-app.use('/api/batches', batchRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/certificates',certificate);
-app.use('/uploads', express.static('uploads'));
-
+  app.use('/api/auth', require('./routes/auth'))
+  app.use('/api/leads', require('./routes/leads'))
+  app.use('/api/students',require('./routes/students'));
+  app.use('/api/fees', feesRoutes);      
+  app.use('/api/coupons', couponRoutes);
+  app.use('/api/student-attendance', studentAttendanceRoutes);
+  app.use('/api/staff-attendance', staffAttendanceRoutes);
+  app.use('/api/batches', batchRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/certificates',certificate);
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
   // 404 Handler
   app.use((req, res) => {
