@@ -87,6 +87,15 @@ export const API_ENDPOINTS = {
     download: `${API_URL}/api/certificates/download`,
     getAll: `${API_URL}/api/certificates`,
   },
+  // LiveClass Endpoints
+  liveClasses: {
+    base: '/api/live-classes',  
+    admin: '/api/live-classes/admin',
+    student: '/api/live-classes/student',
+    stats: '/api/live-classes/stats',
+    byId: (id) => `/api/live-classes/${id}`,
+    join: (id) => `/api/live-classes/${id}/join`
+  },
 
   // Admin endpoints
   admin: {

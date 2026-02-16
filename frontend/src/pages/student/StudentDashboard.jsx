@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Calendar, FileText, CreditCard, BookOpen, Award, Bell, Menu, GraduationCap } from 'lucide-react'
+import { Calendar, FileText, CreditCard, BookOpen, Award, Bell, Menu, GraduationCap, Video } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import Sidebar from '../../components/layout/Sidebar'
+import StudentSidebar from '../../components/layout/StudentSidebar'
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
 
@@ -12,6 +12,7 @@ import StudentFees from '../../components/student/StudentFees';
 import StudentAttendanceTab from '../../components/student/StudentAttendanceTab'
 import StudentCertificate from '../../components/student/StudentCertificate'
 import StudentIDCard from '../../components/student/StudentIDCard'
+import StudentLiveClasses from '../../components/student/StudentLiveClasses';
 
 const StudentDashboard = () => {
   const { user } = useAuth()
@@ -23,12 +24,12 @@ const StudentDashboard = () => {
   const fetchStudentData = useCallback(async () => {
     try {
       setLoading(true)
-      
+
       const response = await axiosInstance.get(API_ENDPOINTS.students.myProfile)
-      
+
       if (response.data.success) {
         const student = response.data.student
-        
+
         setStudentData({
           _id: student._id,
           admissionNumber: student.admissionNumber,
@@ -60,11 +61,11 @@ const StudentDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching student data:', error)
-      
+
       if (error.response?.status === 404) {
         alert('Student profile not found. Please contact administration to link your account.')
       }
-      
+
       setStudentData({
         _id: null,
         admissionNumber: 'Not Assigned',
@@ -106,7 +107,8 @@ const StudentDashboard = () => {
     { id: 'fees', label: 'Fees', icon: CreditCard },
     { id: 'attendance', label: 'Attendance', icon: Calendar },
     { id: 'certificate', label: 'Certificate', icon: Award },
-    { id: 'idcard', label: 'ID Card', icon: CreditCard }
+    { id: 'idcard', label: 'ID Card', icon: CreditCard },
+    { id: 'live-classes', label: 'Live Classes', icon: Video }
   ]
 
   if (loading) {
@@ -119,7 +121,7 @@ const StudentDashboard = () => {
 
   return (
     <>
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <StudentSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 ml-0 lg:ml-72">
         <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
@@ -132,16 +134,14 @@ const StudentDashboard = () => {
                 >
                   <Menu className="w-6 h-6 text-gray-700" />
                 </button>
-
-                <img src="/assets/images/finvision-logo.png" alt="Logo" className="h-10 w-10 object-contain" />
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Student Portal</h2>
                   <p className="text-xs text-gray-500">
-                    {new Date().toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric' 
+                    {new Date().toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
                     })}
                   </p>
                 </div>
@@ -156,8 +156,23 @@ const StudentDashboard = () => {
                   onClick={() => setSidebarOpen(true)}
                   className="flex items-center gap-2 hover:bg-gray-50 rounded-lg p-2 transition-colors"
                 >
-                  <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {user?.firstName?.[0] || user?.name?.[0] || 'S'}
+                  <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
+                    {studentData.profilePhoto ? (
+                      <img
+                        src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${studentData.profilePhoto}`}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                        style={{ objectPosition: 'center top 15%' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = `<span class="text-sm font-semibold">${studentData.fullName[0]}</span>`;
+                        }}
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold">
+                        {studentData.fullName[0]}
+                      </span>
+                    )}
                   </div>
                   <div className="hidden sm:block text-left">
                     <p className="text-sm font-medium text-gray-900">{user?.name || 'Student'}</p>
@@ -208,11 +223,10 @@ const StudentDashboard = () => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap ${
-                        activeTab === tab.id
-                          ? 'border-indigo-600 text-indigo-600 font-medium'
-                          : 'border-transparent text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id
+                        ? 'border-indigo-600 text-indigo-600 font-medium'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       <Icon className="w-4 h-4" />
                       <span className="text-sm">{tab.label}</span>
@@ -230,16 +244,18 @@ const StudentDashboard = () => {
               {activeTab === 'certificate' && <StudentCertificate studentData={studentData} />}
               {activeTab === 'idcard' && <StudentIDCard studentData={studentData} />}
               {activeTab === 'fees' && (<StudentFees studentData={studentData} />)}
-              
+              {activeTab === 'live-classes' && <StudentLiveClasses />}
+
               {/* Coming Soon for other tabs */}
-              {activeTab !== 'overview' && 
-               activeTab !== 'details' &&
-               activeTab !== 'fees' &&
-               activeTab !== 'attendance' && 
-               activeTab !== 'certificate' &&
-               activeTab !== 'idcard' && (
-                <ComingSoonPlaceholder activeTab={activeTab} tabs={tabs} />
-              )}
+              {activeTab !== 'overview' &&
+                activeTab !== 'details' &&
+                activeTab !== 'fees' &&
+                activeTab !== 'attendance' &&
+                activeTab !== 'certificate' &&
+                activeTab !== 'idcard' &&
+                activeTab !== 'live-classes' && (
+                  <ComingSoonPlaceholder activeTab={activeTab} tabs={tabs} />
+                )}
             </div>
           </div>
         </div>

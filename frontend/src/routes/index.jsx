@@ -6,6 +6,7 @@ import AdminDashboard from '../pages/admin/AdminDashboard'
 import StudentDashboard from '../pages/student/StudentDashboard'
 import StaffDashboard from '../pages/staff/StaffDashboard'
 import AttendanceManagement from '../pages/admin/AttendanceManagement'
+import LiveClassesPage from '../pages/admin/LiveClassesPage'
 import CertificatesManagement from '../components/admin/CertificatesManagement'
 import { useAuth } from '../context/AuthContext'
 
@@ -144,6 +145,15 @@ const AppRoutes = () => (
       element={
         <PrivateRoute allowedRoles={['admin']}>
           <CertificatesManagement />
+        </PrivateRoute>
+      }
+    />
+     {/*  LIVE CLASSES ROUTE  */}
+     <Route
+      path="/admin/classes"
+      element={
+        <PrivateRoute allowedRoles={['admin', 'staff']}>
+          <LiveClassesPage />
         </PrivateRoute>
       }
     />
