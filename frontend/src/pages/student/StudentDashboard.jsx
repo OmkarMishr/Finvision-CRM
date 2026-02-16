@@ -234,7 +234,7 @@ const StudentDashboard = () => {
               {/* Coming Soon for other tabs */}
               {activeTab !== 'overview' && 
                activeTab !== 'details' &&
-               activeTab === 'fees' && 
+               activeTab !== 'fees' &&
                activeTab !== 'attendance' && 
                activeTab !== 'certificate' &&
                activeTab !== 'idcard' && (

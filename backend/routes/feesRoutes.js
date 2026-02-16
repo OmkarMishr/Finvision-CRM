@@ -20,7 +20,7 @@ router.get('/receipt/:paymentId', protect, generateReceipt);
 router.post('/coupons/validate', protect, validateCoupon);
 
 // Payment collection (admin, staff)
-router.post('/collect', protect, authorize('admin', 'staff'), collectPayment);
+router.post('/collect', protect, collectPayment);
 
 // Admin routes
 router.get('/statistics', protect, authorize('admin'), getFeeStatistics);
