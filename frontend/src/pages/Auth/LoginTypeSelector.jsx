@@ -11,25 +11,25 @@ const LoginTypeSelector = () => {
       type: 'student',
       title: 'Student Login',
       icon: User,
-      gradient: 'from-blue-500 to-blue-600'
+      gradient: 'from-[#C8294A] to-[#a01f39]'       
     },
     {
       type: 'staff',
       title: 'Staff Login', 
       icon: User,
-      gradient: 'from-blue-500 to-blue-600'
+      gradient: 'from-[#C8294A] to-[#a01f39]'       
     },
     {
       type: 'admin',
       title: 'Admin Login',
       icon: Shield,
-      gradient: 'from-blue-500 to-blue-600'
+      gradient: 'from-[#C8294A] to-[#a01f39]'       
     },
     {
       type: 'unregistered',
       title: 'Unregistered Student',
       icon: UserPlus,
-      gradient: 'from-blue-500 to-blue-600'
+      gradient: 'from-[#C8294A] to-[#a01f39]'      
     }
   ]
 
@@ -41,7 +41,7 @@ const LoginTypeSelector = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-rose-100 flex items-center justify-center p-4">
       <div className="max-w-3xl w-full">
         {/* Header Logo */}
         <div className="text-center mb-3">
@@ -57,7 +57,7 @@ const LoginTypeSelector = () => {
         {/* Login Type Card */}
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
           {/* Card Header */}
-          <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-8 py-5">
+          <div className="bg-gradient-to-r from-[#1a1a1a] to-[#2d2d2d] px-8 py-5">
             <div className="flex items-center gap-3 text-white">
               <ArrowRight className="w-6 h-6" />
               <h2 className="text-xl font-semibold tracking-wide">SELECT LOGIN TYPE</h2>
@@ -75,8 +75,8 @@ const LoginTypeSelector = () => {
                   <button
                     key={loginType.type}
                     onClick={() => handleSelectType(loginType.type)}
-                    className={`group relative bg-gradient-to-r ${loginType.gradient} hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
-                      isSelected ? 'ring-4 ring-blue-300 scale-105' : ''
+                    className={`group relative bg-gradient-to-r ${loginType.gradient} text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:brightness-110 ${
+                      isSelected ? 'ring-4 ring-[#C8294A]/50 scale-105' : ''
                     }`}
                   >
                     <div className="flex items-center gap-4">

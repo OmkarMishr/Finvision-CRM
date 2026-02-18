@@ -26,24 +26,25 @@ const StudentSidebar = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 
   const handleNavigation = (itemId) => {
     setActiveTab(itemId)
-    if (onClose) onClose() // Close sidebar on mobile after navigation
+    if (onClose) onClose()
   }
 
   return (
     <>
       <div className={`fixed top-0 left-0 z-50 h-screen w-72 bg-white border-r border-gray-100 transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="h-full flex flex-col">
+
           {/* Logo */}
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <img 
-                src="/assets/images/finvision-logo.png" 
-                alt="Finvision CRM Logo" 
+              <img
+                src="/assets/images/finvision-logo.png"
+                alt="Finvision CRM Logo"
                 className="w-16 h-16"
               />
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  FINVISION CRM
+                <h1 className="text-xl font-bold text-[#1a1a1a]">
+                  FINVISION
                 </h1>
                 <p className="text-xs text-gray-500">Student Portal</p>
               </div>
@@ -55,7 +56,7 @@ const StudentSidebar = ({ isOpen, onClose, activeTab, setActiveTab }) => {
             {menuItems.map((item, index) => {
               const Icon = item.icon
               const isActive = activeTab === item.id
-              
+
               return (
                 <button
                   key={index}
@@ -63,16 +64,14 @@ const StudentSidebar = ({ isOpen, onClose, activeTab, setActiveTab }) => {
                   disabled={item.comingSoon}
                   className={`w-full relative flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+                      ? 'bg-[#C8294A] text-white shadow-lg'
                       : item.comingSoon
                       ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                      : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 text-gray-700'
+                      : 'hover:bg-[#C8294A]/10 hover:text-[#C8294A] text-gray-700'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium flex-1 text-left">{item.label}</span>
-                  
-                  
                 </button>
               )
             })}
@@ -80,9 +79,9 @@ const StudentSidebar = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 
           {/* Logout */}
           <div className="p-6 border-t border-gray-100">
-            <button 
-              onClick={handleLogout} 
-              className="w-full flex items-center gap-3 p-4 text-left rounded-xl hover:bg-red-50 hover:text-red-600 transition-all duration-200 text-gray-700"
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 p-4 text-left rounded-xl hover:bg-red-50 hover:text-[#C8294A] transition-all duration-200 text-gray-700"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Logout</span>

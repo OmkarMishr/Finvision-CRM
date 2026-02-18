@@ -27,10 +27,7 @@ const Login = () => {
         return
       }
 
-      // Role-based redirect
       const role = result.user.role
-      
-      console.log(' Login successful, redirecting...', role)
 
       switch (role) {
         case 'admin':
@@ -46,7 +43,7 @@ const Login = () => {
           navigate('/dashboard', { replace: true })
       }
     } catch (err) {
-      console.error(' Login error:', err)
+      console.error('Login error:', err)
       setError('An unexpected error occurred. Please try again.')
     }
   }
@@ -55,7 +52,6 @@ const Login = () => {
     navigate('/')
   }
 
-  // Get login type label
   const getLoginTypeLabel = () => {
     switch (loginType) {
       case 'admin':
@@ -71,13 +67,27 @@ const Login = () => {
     }
   }
 
+  const getLoginTypeAccent = () => {
+    switch (loginType) {
+      case 'admin':
+      case 'student':
+        return 'text-[#C8294A]'   
+      case 'staff':
+      case 'unregistered':
+        return 'text-[#1a1a1a]'   
+      default:
+        return 'text-[#C8294A]'
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-rose-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+
         {/* Back Button */}
         <button
           onClick={handleBackToSelector}
-          className="mb-6 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
+          className="mb-6 flex items-center gap-2 text-gray-600 hover:text-[#C8294A] transition-colors group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm font-medium">Back to login type</span>
@@ -86,22 +96,26 @@ const Login = () => {
         {/* Logo & Title */}
         <div className="text-center mb-8">
           <div className="mx-auto w-24 h-24 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-xl border border-gray-100 p-2">
-            <img 
-              src="/assets/images/finvision-logo.png" 
-              alt="Finvision CRM Logo" 
+            <img
+              src="/assets/images/finvision-logo.png"
+              alt="Finvision CRM Logo"
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-2">
-            Finvision CRM
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#1a1a1a] via-[#C8294A] to-[#a01f39] bg-clip-text text-transparent mb-2">
+            Finvision
           </h1>
           <p className="text-gray-600 text-sm">
-            Sign in to {getLoginTypeLabel()}
+            Sign in to{' '}
+            <span className={`font-semibold ${getLoginTypeAccent()}`}>
+              {getLoginTypeLabel()}
+            </span>
           </p>
         </div>
 
         {/* Login Form Card */}
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-8">
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
@@ -120,7 +134,7 @@ const Login = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 focus:border-[#C8294A] focus:ring-4 focus:ring-[#C8294A]/20 transition-all duration-300 outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder="Enter your email"
                 required
                 disabled={loading}
@@ -137,14 +151,14 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 pl-4 pr-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  className="w-full h-12 pl-4 pr-12 rounded-xl border-2 border-gray-200 focus:border-[#C8294A] focus:ring-4 focus:ring-[#C8294A]/20 transition-all duration-300 outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
                   placeholder="Enter your password"
                   required
                   disabled={loading}
                 />
                 <button
                   type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:cursor-not-allowed"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#C8294A] transition-colors disabled:cursor-not-allowed"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
                   tabIndex={-1}
@@ -163,7 +177,8 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => alert('Forgot password feature coming soon')}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                className="text-sm text-[#C8294A] hover:text-[#a01f39] font-medium transition-colors"
+         
                 disabled={loading}
               >
                 Forgot Password?
@@ -174,7 +189,8 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg rounded-xl shadow-xl hover:from-blue-700 hover:to-purple-700 hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="w-full h-14 bg-gradient-to-r from-[#C8294A] to-[#1a1a1a] text-white font-semibold text-lg rounded-xl shadow-xl hover:from-[#a01f39] hover:to-[#2d2d2d] hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -186,8 +202,6 @@ const Login = () => {
               )}
             </button>
           </form>
-
-          
         </div>
 
         {/* Footer */}

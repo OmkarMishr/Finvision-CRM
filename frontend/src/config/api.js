@@ -89,13 +89,13 @@ export const API_ENDPOINTS = {
   },
   // LiveClass Endpoints
   liveClasses: {
-    base: '/api/live-classes',  
-    admin: '/api/live-classes/admin',
-    student: '/api/live-classes/student',
-    stats: '/api/live-classes/stats',
-    byId: (id) => `/api/live-classes/${id}`,
-    join: (id) => `/api/live-classes/${id}/join`
-  },
+    base: `${API_URL}/api/live-classes`,
+    admin: `${API_URL}/api/live-classes/admin`,
+    student: `${API_URL}/api/live-classes/student`,
+    stats: `${API_URL}/api/live-classes/stats`,
+    byId: (id) => `${API_URL}/api/live-classes/${id}`,
+    join: (id) => `${API_URL}/api/live-classes/${id}/join`
+  },,
 
   // Admin endpoints
   admin: {
