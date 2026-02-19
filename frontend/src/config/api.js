@@ -95,7 +95,7 @@ export const API_ENDPOINTS = {
     stats: `${API_URL}/api/live-classes/stats`,
     byId: (id) => `${API_URL}/api/live-classes/${id}`,
     join: (id) => `${API_URL}/api/live-classes/${id}/join`
-  },,
+  },
 
   // Admin endpoints
   admin: {

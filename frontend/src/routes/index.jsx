@@ -140,23 +140,65 @@ const AppRoutes = () => (
     </Route>
 
     {/* CERTIFICATES ROUTE - MOVED OUTSIDE (FLAT STRUCTURE) */}
-    <Route
-      path="/admin/certificates"
-      element={
-        <PrivateRoute allowedRoles={['admin']}>
-          <CertificatesManagement />
-        </PrivateRoute>
-      }
-    />
-     {/*  LIVE CLASSES ROUTE  */}
-     <Route
-      path="/admin/classes"
-      element={
-        <PrivateRoute allowedRoles={['admin', 'staff']}>
-          <LiveClassesPage />
-        </PrivateRoute>
-      }
-    />
+    <Route path="/admin/leads"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/students"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/staff"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/fee"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/student-attendance"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/staff-attendance"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/classes"
+      element={<PrivateRoute allowedRoles={['admin', 'staff']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/certificates"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/reports"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/settings"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/office"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
+
+    <Route path="/admin/analytics"
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
+      <Route index element={<AdminDashboard />} />
+    </Route>
 
     {/* STAFF ROUTES - Staff Dashboard (No Layout) */}
     <Route

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Calendar, Users, Clock, Download, Filter, Search, ChevronDown, UserCheck, Briefcase, TrendingUp, X, CheckCircle, XCircle} from 'lucide-react'
-import axiosInstance from '../../config/axios'
-import { API_ENDPOINTS } from '../../config/api'
+import axiosInstance from '../../../config/axios'
+import { API_ENDPOINTS } from '../../../config/api'
 
 const AttendancePanel = () => {
   const [activeTab, setActiveTab] = useState('students') // 'students' or 'staff'
