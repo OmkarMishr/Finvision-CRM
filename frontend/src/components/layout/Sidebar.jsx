@@ -1,7 +1,7 @@
-import { 
-  LayoutDashboard, Users, DollarSign, Calendar, BookOpen, 
-  Award, Video, Users2, Settings, LogOut, UserCheck, 
-  ClipboardCheck, BarChart3, Building2, FileText, TrendingUp
+import {
+  LayoutDashboard, Users, DollarSign, Calendar, BookOpen,
+  Award, Video, Users2, Settings, LogOut, UserCheck,
+  ClipboardCheck, BarChart3, Building2, FileText, TrendingUp,ExternalLink
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -15,45 +15,44 @@ const Sidebar = ({ isOpen, onClose }) => {
     {
       groupLabel: 'Overview',
       items: [
-        { icon: LayoutDashboard, label: 'Dashboard',         href: '/dashboard' },
-        { icon: BarChart3,       label: 'Analytics',         href: '/admin/analytics' },
+        { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
       ]
     },
     {
       groupLabel: 'Management',
       items: [
-        { icon: TrendingUp, label: 'Lead Management',        href: '/admin/leads' },
-        { icon: Users,      label: 'Student Management',     href: '/admin/students' },
-        { icon: Users2,     label: 'Staff Management',       href: '/admin/staff' },
-        { icon: Building2,  label: 'Front Office',           href: '/admin/office' },
+        { icon: TrendingUp, label: 'Lead Management', href: '/admin/leads' },
+        { icon: Users, label: 'Student Management', href: '/admin/students' },
+        { icon: Users2, label: 'Staff Management', href: '/admin/staff' },
+        { icon: Building2, label: 'Front Office', href: 'https://myfinvision.com/', external: true },
       ]
     },
     {
       groupLabel: 'Finance',
       items: [
-        { icon: DollarSign, label: 'Fee Collection',         href: '/admin/fee' },
+        { icon: DollarSign, label: 'Fee Collection', href: '/admin/fee' },
       ]
     },
     {
       groupLabel: 'Attendance',
       items: [
-        { icon: UserCheck,     label: 'Student Attendance',  href: '/admin/student-attendance' },
-        { icon: ClipboardCheck, label: 'Staff Attendance',   href: '/admin/staff-attendance' },
+        { icon: UserCheck, label: 'Student Attendance', href: '/admin/student-attendance' },
+        { icon: ClipboardCheck, label: 'Staff Attendance', href: '/admin/staff-attendance' },
       ]
     },
     {
       groupLabel: 'Academic',
       items: [
-        { icon: Video,     label: 'Live Classes',            href: '/admin/classes' },
-        { icon: BookOpen,  label: 'Library',                 href: '/admin/library' },
-        { icon: Award,     label: 'Certificates',            href: '/admin/certificates' },
+        { icon: Video, label: 'Live Classes', href: '/admin/classes' },
+        { icon: BookOpen, label: 'Library', href: '/admin/library' },
+        { icon: Award, label: 'Certificates', href: '/admin/certificates' },
       ]
     },
     {
       groupLabel: 'System',
       items: [
-        { icon: FileText,  label: 'MIS Reports',             href: '/admin/reports' },
-        { icon: Settings,  label: 'Settings',                href: '/admin/settings' },
+        { icon: FileText, label: 'MIS Reports', href: '/admin/reports' },
+        { icon: Settings, label: 'Settings', href: '/admin/settings' },
       ]
     }
   ]
@@ -66,8 +65,12 @@ const Sidebar = ({ isOpen, onClose }) => {
     onClose?.()
   }
 
-  const handleNavigation = (href) => {
-    navigate(href)
+  const handleNavigation = (href, external = false) => {
+    if (external) {
+      window.open(href, '_blank', 'noopener,noreferrer')
+    } else {
+      navigate(href)
+    }
     if (onClose) onClose()
   }
 
@@ -109,12 +112,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                     return (
                       <button
                         key={index}
-                        onClick={() => handleNavigation(item.href)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-                          isActive
+                        onClick={() => handleNavigation(item.href, item.external)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isActive
                             ? 'bg-[#C8294A] text-white shadow-md'
                             : 'hover:bg-[#C8294A]/10 hover:text-[#C8294A] text-gray-600'
-                        }`}
+                          }`}
                       >
                         <Icon className="w-4 h-4 shrink-0" />
                         <span className="text-sm font-medium">{item.label}</span>
