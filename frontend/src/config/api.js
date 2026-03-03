@@ -37,6 +37,18 @@ export const API_ENDPOINTS = {
     uploadPhoto: `${API_URL}/api/students/upload-photo`,
   },
 
+  // Staff endpoints — ADDED
+  staff: {
+    base: `${API_URL}/api/staff`, 
+    create: `${API_URL}/api/staff`,  
+    stats: `${API_URL}/api/staff/stats/overview`, 
+    byId: (id) => `${API_URL}/api/staff/${id}`, 
+    update: (id) => `${API_URL}/api/staff/${id}`,
+    delete: (id) => `${API_URL}/api/staff/${id}`, 
+    updateStatus: (id) => `${API_URL}/api/staff/${id}/status`, 
+    resetPassword: (id) => `${API_URL}/api/staff/${id}/reset-password`,
+  },
+
   // Student Attendance endpoints
   studentAttendance: {
     markSingle: `${API_URL}/api/student-attendance/mark`,
@@ -111,5 +123,6 @@ export const BATCH_ENDPOINTS = API_ENDPOINTS.batches
 export const LEAD_ENDPOINTS = API_ENDPOINTS.leads
 export const STUDENT_ENDPOINTS = API_ENDPOINTS.students
 export const ADMIN_ENDPOINTS = API_ENDPOINTS.admin
+export const STAFF_ENDPOINTS = API_ENDPOINTS.staff
 
 export default API_URL

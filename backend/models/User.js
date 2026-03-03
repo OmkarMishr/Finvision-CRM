@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema({
     employeeId: String,
     department: {
       type: String,
-      enum: ['Math', 'Science', 'English', 'Computer', 'Physics', 'Chemistry', 'Biology', 'History']
+      enum: ['Sales', 'Marketing', 'Customer Support', 'Finance', 'HR', 'IT', 'Operations', 'Other']
     },
     subject: String,
     joiningDate: {
