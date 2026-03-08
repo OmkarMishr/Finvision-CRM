@@ -13,7 +13,8 @@ const certificate =  require('./routes/certificates');
 const feesRoutes = require('./routes/feesRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const liveClassRoutes = require('./routes/liveClassRoutes');
-const staffRoutes = require('./routes/staff')
+const staffRoutes = require('./routes/staff');
+const adminSettingRoutes = require('./routes/adminSettingRoutes');
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -85,7 +86,8 @@ connectDB.connect().then(async () => {
   app.use('/api/certificates',certificate);
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   app.use('/api/live-classes', liveClassRoutes);
-  app.use('/api/staff', staffRoutes)
+  app.use('/api/staff', staffRoutes);
+  app.use('/api/admin-settings', adminSettingRoutes);
 
   // 404 Handler
   app.use((req, res) => {

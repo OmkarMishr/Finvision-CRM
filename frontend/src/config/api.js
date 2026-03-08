@@ -114,7 +114,29 @@ export const API_ENDPOINTS = {
     backup: `${API_URL}/api/admin/backup`,
     restore: `${API_URL}/api/admin/restore`,
     dashboardStats: `${API_URL}/api/admin/dashboard-stats`
-  }
+  },
+  
+  // Admin Settings Endpoints
+  adminSettings: {
+    base: `${API_URL}/api/admin-settings`,
+    institute: `${API_URL}/api/admin-settings/institute`,
+    logo: `${API_URL}/api/admin-settings/institute/logo`,
+    fees: `${API_URL}/api/admin-settings/fees`,
+    permissions: `${API_URL}/api/admin-settings/permissions`,
+    notifications: `${API_URL}/api/admin-settings/notifications`,
+    security: `${API_URL}/api/admin-settings/security`,
+    password: `${API_URL}/api/admin-settings/change-password`,
+    appearance: `${API_URL}/api/admin-settings/appearance`,
+    account: `${API_URL}/api/admin-settings/account`,
+    coupons: {
+      base: `${API_URL}/api/admin-settings/coupons`,
+      toggle: (id) => `${API_URL}/api/admin-settings/coupons/${id}/toggle`,
+      delete: (id) => `${API_URL}/api/admin-settings/coupons/${id}`,
+    },
+    data: {
+      archived: `${API_URL}/api/admin-settings/data/archived`,
+    },
+  },
 }
 
 // Legacy exports for backward compatibility (if needed)

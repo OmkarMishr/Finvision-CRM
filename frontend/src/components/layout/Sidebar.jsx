@@ -44,7 +44,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       groupLabel: 'Academic',
       items: [
         { icon: Video, label: 'Live Classes', href: '/admin/classes' },
-        { icon: BookOpen, label: 'Library', href: '/admin/library' },
         { icon: Award, label: 'Certificates', href: '/admin/certificates' },
       ]
     },
