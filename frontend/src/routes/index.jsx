@@ -1,145 +1,120 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import LoginTypeSelector from '../pages/Auth/LoginTypeSelector'
-import Login from '../pages/Auth/Login'
-import DashboardLayout from '../components/layout/DashboardLayout'
-import AdminDashboard from '../pages/admin/AdminDashboard'
-import StudentDashboard from '../pages/student/StudentDashboard'
-import StaffDashboard from '../pages/staff/StaffDashboard'
-import AttendanceManagement from '../pages/admin/AttendanceManagement'
-import LiveClassesPage from '../pages/admin/LiveClassesPage'
+import LoginTypeSelector      from '../pages/Auth/LoginTypeSelector'
+import Login                  from '../pages/Auth/Login'
+import DashboardLayout        from '../components/layout/DashboardLayout'
+import AdminDashboard         from '../pages/admin/AdminDashboard'
+import StudentDashboard       from '../pages/student/StudentDashboard'
+import StaffDashboard         from '../pages/staff/StaffDashboard'
+import AttendanceManagement   from '../pages/admin/AttendanceManagement'
+import LiveClassesPage        from '../pages/admin/LiveClassesPage'
 import CertificatesManagement from '../components/admin/CertificatesManagement'
-import { useAuth } from '../context/AuthContext'
+import { useAuth }            from '../context/AuthContext'
 
-// PrivateRoute Component with Role-Based Access Control
+// ── Staff Pages ───────────────────────────────────────────────────────────────
+import StaffLayout    from '../pages/staff/StaffLayout'
+import LeadsPanel     from '../components/admin/dashboard/LeadsPanel'
+import MarkAttendance from '../components/staff/MarkAttendance'
+import AttendanceLog  from '../components/staff/AttendanceLog'
+import ApplyLeave     from '../components/staff/ApplyLeave'
+// import LeaveHistory   from '../pages/staff/LeaveHistory'
+// import StaffReports   from '../pages/staff/StaffReports'
+
+// ── Temporary placeholder for unbuilt pages ───────────────────────────────────
+const ComingSoon = ({ title = 'Coming Soon' }) => (
+  <div className="flex flex-col items-center justify-center h-96 bg-white rounded-2xl shadow">
+    <div className="w-16 h-16 bg-[#C8294A]/10 rounded-full flex items-center justify-center mb-4">
+      <span className="text-3xl">🚧</span>
+    </div>
+    <h2 className="text-xl font-bold text-[#1a1a1a] mb-2">{title}</h2>
+    <p className="text-gray-400 text-sm">This page is under construction</p>
+  </div>
+)
+
+
+// ─── PrivateRoute ─────────────────────────────────────────────────────────────
 const PrivateRoute = ({ children, allowedRoles = [] }) => {
   const { isAuthenticated, loading, userRole } = useAuth()
 
-  // Show loading spinner while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
-  // If not authenticated, redirect to login selector
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />
-  }
+  if (!isAuthenticated) return <Navigate to="/" replace />
 
-  // Check if user role is allowed for this route
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
-    // Redirect to appropriate dashboard based on user role
     switch (userRole) {
-      case 'admin':
-        return <Navigate to="/dashboard" replace />
-      case 'staff':
-        return <Navigate to="/staff/dashboard" replace />
-      case 'student':
-        return <Navigate to="/student/dashboard" replace />
-      default:
-        return <Navigate to="/" replace />
+      case 'admin':   return <Navigate to="/dashboard"        replace />
+      case 'staff':   return <Navigate to="/staff/dashboard"  replace />
+      case 'student': return <Navigate to="/student/dashboard" replace />
+      default:        return <Navigate to="/"                 replace />
     }
   }
 
   return children
 }
 
-// PublicRoute Component - Redirects authenticated users to their dashboard
+
+// ─── PublicRoute ──────────────────────────────────────────────────────────────
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading, userRole } = useAuth()
 
-  // Show loading while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
-  // If authenticated, redirect to role-specific dashboard
   if (isAuthenticated) {
     switch (userRole) {
-      case 'admin':
-        return <Navigate to="/dashboard" replace />
-      case 'staff':
-        return <Navigate to="/staff/dashboard" replace />
-      case 'student':
-        return <Navigate to="/student/dashboard" replace />
-      default:
-        return <Navigate to="/dashboard" replace />
+      case 'admin':   return <Navigate to="/dashboard"         replace />
+      case 'staff':   return <Navigate to="/staff/dashboard"   replace />
+      case 'student': return <Navigate to="/student/dashboard" replace />
+      default:        return <Navigate to="/dashboard"         replace />
     }
   }
 
   return children
 }
 
-// Catch-all redirect based on authentication and role
+
+// ─── CatchAll ─────────────────────────────────────────────────────────────────
 const CatchAllRedirect = () => {
   const { isAuthenticated, userRole } = useAuth()
 
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />
-  }
+  if (!isAuthenticated) return <Navigate to="/" replace />
 
-  // Redirect authenticated users to their dashboard
   switch (userRole) {
-    case 'admin':
-      return <Navigate to="/dashboard" replace />
-    case 'staff':
-      return <Navigate to="/staff/dashboard" replace />
-    case 'student':
-      return <Navigate to="/student/dashboard" replace />
-    default:
-      return <Navigate to="/" replace />
+    case 'admin':   return <Navigate to="/dashboard"         replace />
+    case 'staff':   return <Navigate to="/staff/dashboard"   replace />
+    case 'student': return <Navigate to="/student/dashboard" replace />
+    default:        return <Navigate to="/"                  replace />
   }
 }
 
+
+// ─── Shared Loading Screen ────────────────────────────────────────────────────
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-gray-600 font-medium">Loading...</p>
+    </div>
+  </div>
+)
+
+
+// ─── AppRoutes ────────────────────────────────────────────────────────────────
 const AppRoutes = () => (
   <Routes>
-    {/* PUBLIC ROUTES - Login Flow */}
-    <Route
-      path="/"
-      element={
-        <PublicRoute>
-          <LoginTypeSelector />
-        </PublicRoute>
-      }
-    />
 
-    <Route
-      path="/login"
-      element={
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      }
-    />
+    {/* ── PUBLIC ── */}
+    <Route path="/" element={<PublicRoute><LoginTypeSelector /></PublicRoute>} />
+    <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 
-    {/* ADMIN ROUTES - Full Dashboard with Layout */}
+
+    {/* ── ADMIN ── */}
     <Route
       path="/dashboard"
-      element={
-        <PrivateRoute allowedRoles={['admin']}>
-          <DashboardLayout />
-        </PrivateRoute>
-      }
+      element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}
     >
-      {/* Admin Dashboard */}
-      <Route index element={<AdminDashboard />} />
-      {/* Add more admin routes here if needed */}
-      <Route path="attendance" element={<AttendanceManagement />} />
+      <Route index                element={<AdminDashboard />}         />
+      <Route path="attendance"    element={<AttendanceManagement />}   />
     </Route>
 
-    {/* CERTIFICATES ROUTE - MOVED OUTSIDE (FLAT STRUCTURE) */}
     <Route path="/admin/leads"
       element={<PrivateRoute allowedRoles={['admin']}><DashboardLayout /></PrivateRoute>}>
       <Route index element={<AdminDashboard />} />
@@ -200,17 +175,51 @@ const AppRoutes = () => (
       <Route index element={<AdminDashboard />} />
     </Route>
 
-    {/* STAFF ROUTES - Staff Dashboard (No Layout) */}
+
+    {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        STAFF ROUTES — all nested under StaffLayout
+        StaffLayout renders: StaffSidebar + Header + <Outlet />
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
     <Route
-      path="/staff/dashboard"
+      path="/staff"
       element={
         <PrivateRoute allowedRoles={['staff']}>
-          <StaffDashboard />
+          <StaffLayout />
         </PrivateRoute>
       }
+    >
+      {/* /staff  →  redirect to /staff/dashboard */}
+      <Route index element={<Navigate to="/staff/dashboard" replace />} />
+
+      {/* Overview */}
+      <Route path="dashboard" element={<StaffDashboard />} />
+
+      {/* Lead Management */}
+      <Route path="leads"     element={<LeadsPanel />} />
+
+      {/* Attendance */}
+      <Route path="attendance" element={<MarkAttendance />} />
+      <Route path="attendance/log" element={<AttendanceLog />} />
+
+      {/* Leave */}
+      <Route path="leave/apply"   element={<ApplyLeave />} />
+      <Route path="leave/history" element={<ComingSoon title="Leave History"   />} />
+
+      {/* Reports */}
+      <Route path="reports" element={<ComingSoon title="My Reports" />} />
+
+      {/* Catch-all inside /staff/* */}
+      <Route path="*" element={<Navigate to="/staff/dashboard" replace />} />
+    </Route>
+
+    {/* Legacy flat route — redirects old URL to new nested one */}
+    <Route
+      path="/staff/dashboard"
+      element={<Navigate to="/staff/dashboard" replace />}
     />
 
-    {/* STUDENT ROUTES - Student Dashboard (No Layout) */}
+
+    {/* ── STUDENT ── */}
     <Route
       path="/student/dashboard"
       element={
@@ -220,8 +229,10 @@ const AppRoutes = () => (
       }
     />
 
-    {/* Catch-all route - Redirects based on auth status and role */}
+
+    {/* ── CATCH-ALL ── */}
     <Route path="*" element={<CatchAllRedirect />} />
+
   </Routes>
 )
 
