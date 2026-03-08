@@ -1,4 +1,4 @@
-const User   = require('../models/User')  // ✅ Use User model, not Staff
+const User   = require('../models/User')  
 const bcrypt = require('bcryptjs')
 
 // ─── GET /api/staff ───────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ const createStaff = async (req, res) => {
       email,
       password,
       phone,
-      role:      'staff',                    // ✅ role = staff
+      role:      'staff',                    
       staffRole: staffRole || 'Teacher',     // telecaller | counselor | Teacher
       isActive:  true,
       staffInfo: {
@@ -134,7 +134,7 @@ const getStaffById = async (req, res) => {
   try {
     const staff = await User.findOne({
       _id:  req.params.id,
-      role: 'staff'           // ✅ ensure it's actually staff, not admin/student
+      role: 'staff'           
     }).select('-password')
 
     if (!staff) {

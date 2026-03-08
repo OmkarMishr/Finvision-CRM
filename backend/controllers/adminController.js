@@ -41,7 +41,7 @@ const createBackup = async (req, res) => {
       }
     };
 
-    console.log('✅ Backup created successfully:', {
+    console.log('Backup created successfully:', {
       leads: leads.length,
       students: students.length,
       users: users.length,
@@ -57,7 +57,7 @@ const createBackup = async (req, res) => {
     res.json(backup);
 
   } catch (error) {
-    console.error('❌ Backup error:', error);
+    console.error('Backup error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create backup',
@@ -71,7 +71,7 @@ const createBackup = async (req, res) => {
 // @access  Private (Admin only)
 const restoreBackup = async (req, res) => {
   try {
-    console.log('🔄 Restore initiated by admin:', req.user.userId);
+    console.log('Restore initiated by admin:', req.user.userId);
     
     const backup = req.body;
 
@@ -93,7 +93,7 @@ const restoreBackup = async (req, res) => {
 
     const { leads, students, users, attendance, batches } = backup.data;
 
-    console.log('📊 Backup data to restore:', {
+    console.log('Backup data to restore:', {
       leads: leads?.length || 0,
       students: students?.length || 0,
       users: users?.length || 0,
@@ -102,7 +102,7 @@ const restoreBackup = async (req, res) => {
     });
 
     // Clear existing data (DANGEROUS - use with caution)
-    console.log('🗑️  Clearing existing data...');
+    console.log(' Clearing existing data...');
     await Promise.all([
       Lead.deleteMany({}),
       Student.deleteMany({}),

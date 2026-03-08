@@ -436,6 +436,12 @@ const markSelfAttendance = async (req, res) => {
         lat: 21.21225770972837, 
         lng: 81.31623493366958,
         radius: 200
+      },
+      {
+        name: 'Main-office - Raipur',
+        lat: 21.238296861020537,
+        lng: 81.67903833786565,
+        radius: 300
       }
       // Add more branches here if needed
     ];
