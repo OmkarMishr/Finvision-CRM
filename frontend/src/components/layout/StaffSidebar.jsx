@@ -24,7 +24,6 @@ import {
         groupLabel: 'Leads',
         items: [
           { icon: TrendingUp,      label: 'Lead Management',  href: '/staff/leads'            },
-          { icon: User,      label: 'Batch Management',  href: '/staff/batches'            },
         ],
       },
       {
@@ -38,7 +37,6 @@ import {
         groupLabel: 'Leave',
         items: [
           { icon: CalendarDays,    label: 'Apply for Leave',  href: '/staff/leave/apply'      },
-          { icon: ClipboardList,   label: 'Leave History',    href: '/staff/leave/history'    },
         ],
       },
       {

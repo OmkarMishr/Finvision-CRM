@@ -16,14 +16,13 @@ import LeadsPanel     from '../components/admin/dashboard/LeadsPanel'
 import MarkAttendance from '../components/staff/MarkAttendance'
 import AttendanceLog  from '../components/staff/AttendanceLog'
 import ApplyLeave     from '../components/staff/ApplyLeave'
-// import LeaveHistory   from '../pages/staff/LeaveHistory'
-// import StaffReports   from '../pages/staff/StaffReports'
+import StaffReports   from '../components/staff/StaffReports'
 
 // ── Temporary placeholder for unbuilt pages ───────────────────────────────────
 const ComingSoon = ({ title = 'Coming Soon' }) => (
   <div className="flex flex-col items-center justify-center h-96 bg-white rounded-2xl shadow">
     <div className="w-16 h-16 bg-[#C8294A]/10 rounded-full flex items-center justify-center mb-4">
-      <span className="text-3xl">🚧</span>
+      <span className="text-3xl">.</span>
     </div>
     <h2 className="text-xl font-bold text-[#1a1a1a] mb-2">{title}</h2>
     <p className="text-gray-400 text-sm">This page is under construction</p>
@@ -203,10 +202,9 @@ const AppRoutes = () => (
 
       {/* Leave */}
       <Route path="leave/apply"   element={<ApplyLeave />} />
-      <Route path="leave/history" element={<ComingSoon title="Leave History"   />} />
 
       {/* Reports */}
-      <Route path="reports" element={<ComingSoon title="My Reports" />} />
+      <Route path="reports" element={<StaffReports/>} />
 
       {/* Catch-all inside /staff/* */}
       <Route path="*" element={<Navigate to="/staff/dashboard" replace />} />

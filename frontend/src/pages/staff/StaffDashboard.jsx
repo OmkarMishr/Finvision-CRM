@@ -58,7 +58,7 @@ const StaffDashboard = () => {
       {/* ── Welcome Banner ── */}
       <div className="bg-gradient-to-r from-[#C8294A] to-[#a01f39] rounded-2xl p-6 text-white shadow-lg">
         <h2 className="text-2xl font-bold mb-1">
-          Welcome back, {user?.name?.split(' ')[0] || 'Staff'} 👋
+          Welcome back, {user?.name?.split(' ')[0] || 'Staff'} 
         </h2>
         <p className="text-white/75 text-sm">
           {new Date().toLocaleDateString('en-IN', {
