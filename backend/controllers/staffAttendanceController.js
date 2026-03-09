@@ -32,6 +32,12 @@ function validateLocation(latitude, longitude) {
           lat: 21.21225770972837, 
           lng: 81.31623493366958,
           radius: 200
+        },
+        {
+          name: 'Main-office - Raipur',
+          lat: 21.238296861020537,
+          lng: 81.67903833786565,
+          radius: 300
         }
     // Add more branches here
   ];
@@ -114,10 +120,10 @@ const checkIn = async (req, res) => {
       });
     }
 
-    // Calculate if late (assuming office starts at 9:00 AM)
+    // Calculate if late (assuming office starts at 10:00 AM)
     const checkInTime = new Date();
     const expectedTime = new Date(dateOnly);
-    expectedTime.setHours(9, 0, 0, 0); // 9:00 AM
+    expectedTime.setHours(10, 0, 0, 0); // 10:00 AM
 
     const isLate = checkInTime > expectedTime;
     const lateByMinutes = isLate 
