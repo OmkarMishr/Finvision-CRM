@@ -85,6 +85,19 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/admin-settings', adminSettingRoutes);
 app.use('/api/leave', leaveRoutes);
 
+app.use(async (req, res, next) => {
+  try {
+    await connectDB.connect()
+    next()
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Database connection failed',
+      error: err.message
+    })
+  }
+})
+
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({
