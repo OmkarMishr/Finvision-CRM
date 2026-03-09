@@ -38,8 +38,6 @@ const initializeUploadDirs = async () => {
 }
 
 // CORS Middleware
-app.options('*', cors())
-
 app.use(cors({
   origin: [
     'https://finvision-crm-9rqk.vercel.app',
