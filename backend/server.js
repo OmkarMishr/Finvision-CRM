@@ -111,8 +111,11 @@ connectDB.connect().then(async () => {
   })
 
   // Start Server AFTER DB Connection
-  app.listen(PORT, () => {
+  if(require.main === module) {
+    app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
   })
+  }
+  module.exports = app; // Exporting for testing purposes
 })

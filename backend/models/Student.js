@@ -193,9 +193,7 @@ studentSchema.pre('save', async function () {
 })
 
 // Indexes for faster queries
-studentSchema.index({ mobile: 1 })
 studentSchema.index({ email: 1 })
-studentSchema.index({ admissionNumber: 1 })
 studentSchema.index({ status: 1 })
 studentSchema.index({ batchType: 1 })
 studentSchema.index({ branch: 1 })
