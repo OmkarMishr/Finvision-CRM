@@ -38,14 +38,18 @@ const initializeUploadDirs = async () => {
 }
 
 // CORS Middleware
+app.options('*', cors())
+
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL,
     'https://finvision-crm-9rqk.vercel.app',
     'http://localhost:5173'
   ],
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
   credentials: true
 }))
+app.options('*', cors())
 
 // Body Parsers & Logger
 app.use(express.json({ limit: '10mb' }))
