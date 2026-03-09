@@ -1,4 +1,7 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
+const dns = require('dns')
+dns.setServers(['8.8.8.8', '1.1.1.1'])
+
 
 class db {
   constructor() {
@@ -7,7 +10,7 @@ class db {
 
   async connect() {
     try {
-      const dbUri = process.env.MONGODB_URI || process.env.MONGODB_ATLAS_URI
+      const dbUri = process.env.MONGODB_URI
       
       if (!dbUri) {
         throw new Error('MONGODB_URI or MONGODB_ATLAS_URI not found in .env')

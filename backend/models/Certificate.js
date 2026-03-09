@@ -38,6 +38,5 @@ const certificateSchema = new mongoose.Schema({
 
 // Index for faster queries
 certificateSchema.index({ studentId: 1 });
-certificateSchema.index({ certificateNo: 1 });
 
 module.exports = mongoose.model('Certificate', certificateSchema);
