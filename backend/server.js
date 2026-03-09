@@ -41,6 +41,7 @@ const initializeUploadDirs = async () => {
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL,
+    'https://finvision-crm-9rqk.vercel.app',
     'http://localhost:5173'
   ],
   credentials: true
