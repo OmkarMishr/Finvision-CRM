@@ -41,8 +41,8 @@ const initializeUploadDirs = async () => {
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL,
-    'https://www.myfinvision.com',
-    'https://myfinvision.com',
+    'https://www.crm.myfinvision.com',
+    'https://crm.myfinvision.com',
     'http://localhost:5173', //fOR LOCAL DEV
   ],
   credentials: true,
