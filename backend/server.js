@@ -107,6 +107,7 @@ app.use('/api/live-classes', liveClassRoutes)
 app.use('/api/staff', staffRoutes)
 app.use('/api/admin-settings', adminSettingRoutes)
 app.use('/api/leave', leaveRoutes)
+app.use('/api/webhooks', require('./routes/webhooks'))
 
 // 404 Handler
 app.use((req, res) => {
