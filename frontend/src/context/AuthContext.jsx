@@ -5,18 +5,19 @@ import { API_ENDPOINTS } from '../config/api'
 const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [user, setUser]               = useState(null)
+  const [token, setToken]             = useState(null)
+  const [loading, setLoading]         = useState(false)      // login API call loading
+  const [authLoading, setAuthLoading] = useState(true)       // ✅ initial localStorage check
 
-  // optional: load from localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem('fv_token')
-    const savedUser = localStorage.getItem('fv_user')
+    const savedUser  = localStorage.getItem('fv_user')
     if (savedToken && savedUser) {
       setToken(savedToken)
       setUser(JSON.parse(savedUser))
     }
+    setAuthLoading(false)   // ✅ done checking localStorage
   }, [])
 
   const login = async (email, password) => {
@@ -26,22 +27,17 @@ export const AuthProvider = ({ children }) => {
         email,
         password,
       })
-
       const { token, user } = res.data
-
       setToken(token)
       setUser(user)
-
       localStorage.setItem('fv_token', token)
       localStorage.setItem('fv_user', JSON.stringify(user))
-
-      return { success: true }
+      return { success: true, user }
     } catch (err) {
       console.error('Login error:', err.response?.data || err.message)
       return {
         success: false,
-        message:
-          err.response?.data?.message || 'Unable to login. Please try again.',
+        message: err.response?.data?.message || 'Invalid email or password. Please try again.',
       }
     } finally {
       setLoading(false)
@@ -59,6 +55,7 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
+    authLoading,   // ✅ expose separately
     login,
     logout,
     isAuthenticated: !!token,

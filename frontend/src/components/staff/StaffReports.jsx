@@ -291,7 +291,7 @@ const TelecallerReport = ({ user }) => {
       const finalStudents = myStudents.length > 0 ? myStudents : studentsData
 
       if (myLeads.length === 0 && leadsData.length > 0) {
-        console.warn('[TelecallerReport] ⚠️ No leads matched user ID — showing ALL leads. Check assignedTo field name in your Lead model.')
+        console.warn('[TelecallerReport]  No leads matched user ID — showing ALL leads. Check assignedTo field name in your Lead model.')
       }
 
       setLeads(finalLeads)
@@ -1200,7 +1200,7 @@ const MyReports = () => {
           <p className="text-gray-400 text-sm mt-0.5">
             {user
               ? `${user.firstName||user.name||'Staff'} · ${user.staffRole||user.role||'Staff'}`
-              : '⚠️ User not found in localStorage'
+              : ' User not found in localStorage'
             }
           </p>
         </div>
