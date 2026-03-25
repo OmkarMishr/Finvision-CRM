@@ -147,7 +147,7 @@ const checkIn = async (req, res) => {
       }
     });
 
-    await attendance.populate('userId', 'fullName email');
+    await attendance.populate('userId', 'firstName lastName email staffRole');
 
     res.status(201).json({
       success: true,
@@ -231,7 +231,7 @@ const checkOut = async (req, res) => {
     }
 
     await attendance.save();
-    await attendance.populate('userId', 'fullName email');
+    await attendance.populate('userId', 'firstName lastName email staffRole');
 
     res.json({
       success: true,
@@ -276,7 +276,7 @@ const getMyAttendance = async (req, res) => {
 
     const attendance = await StaffAttendance.find(query)
       .sort({ date: -1 })
-      .populate('userId', 'fullName email');
+      .populate('userId', 'firstName lastName email staffRole');
 
     // Calculate statistics
     const total = attendance.length;
@@ -320,7 +320,7 @@ const getTodayStatus = async (req, res) => {
     const attendance = await StaffAttendance.findOne({
       userId: req.user.id,
       date: dateOnly
-    }).populate('userId', 'fullName email');
+    }).populate('userId', 'firstName lastName email staffRole');
 
     if (!attendance) {
       return res.json({
@@ -378,7 +378,7 @@ const getAllStaffAttendance = async (req, res) => {
     }
 
     const attendance = await StaffAttendance.find(query)
-      .populate('userId', 'fullName email role staffRole')
+    .populate('userId', 'firstName lastName email role staffRole')
       .sort({ date: -1, checkInTime: -1 });
 
     res.json({
