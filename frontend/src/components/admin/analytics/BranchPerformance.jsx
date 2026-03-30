@@ -1,27 +1,91 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, TrendingUp } from 'lucide-react';
+import axiosInstance from '../../../config/axios';
+import { API_ENDPOINTS } from '../../../config/api';
 
 const BranchPerformance = ({ branches }) => {
   const [branchData, setBranchData] = useState([]);
+  const [loading,    setLoading]    = useState(true);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockData = branches.map(branch => ({
-      name: branch,
-      leads: Math.floor(Math.random() * 100) + 20,
-      students: Math.floor(Math.random() * 50) + 10,
-      revenue: Math.floor(Math.random() * 500000) + 100000,
-      conversion: (Math.random() * 30 + 10).toFixed(1)
-    }));
+    if (!branches?.length) return;
 
-    setBranchData(mockData);
+    const fetchBranchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch leads and students in parallel
+        const [leadsRes, studentsRes] = await Promise.all([
+          axiosInstance.get(API_ENDPOINTS.leads.base),
+          axiosInstance.get(API_ENDPOINTS.students.base),
+        ]);
+
+        const allLeads = Array.isArray(leadsRes.data)
+          ? leadsRes.data
+          : leadsRes.data?.data || leadsRes.data?.leads || [];
+
+        const allStudents = Array.isArray(studentsRes.data)
+          ? studentsRes.data
+          : studentsRes.data?.data || studentsRes.data?.students || [];
+
+        const data = branches.map(branch => {
+          // Match leads by branch field (case-insensitive)
+          const branchLeads = allLeads.filter(l =>
+            l.branch?.toLowerCase() === branch.toLowerCase() ||
+            l.city?.toLowerCase()   === branch.toLowerCase() ||
+            l.location?.toLowerCase() === branch.toLowerCase()
+          );
+
+          const branchStudents = allStudents.filter(s =>
+            s.branch?.toLowerCase()   === branch.toLowerCase() ||
+            s.city?.toLowerCase()     === branch.toLowerCase() ||
+            s.location?.toLowerCase() === branch.toLowerCase()
+          );
+
+          const converted = branchLeads.filter(l => l.stage === 'Admission').length;
+          const conversionRate = branchLeads.length > 0
+            ? ((converted / branchLeads.length) * 100).toFixed(1)
+            : '0.0';
+
+          // Sum actual revenue from students
+          const revenue = branchStudents.reduce((sum, s) => {
+            return sum + (s.totalFeePaid || s.paidAmount || s.feePaid || 0);
+          }, 0);
+
+          return {
+            name:       branch,
+            leads:      branchLeads.length,
+            students:   branchStudents.length,
+            revenue,
+            conversion: conversionRate,
+          };
+        });
+
+        setBranchData(data);
+      } catch (e) {
+        console.error('BranchPerformance fetch error:', e);
+        // Fallback: show branches with zero data rather than crashing
+        setBranchData(branches.map(b => ({
+          name: b, leads: 0, students: 0, revenue: 0, conversion: '0.0'
+        })));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBranchData();
   }, [branches]);
 
-  const maxRevenue = Math.max(...branchData.map(b => b.revenue));
+  const maxRevenue = Math.max(...branchData.map(b => b.revenue), 1);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+      Loading branch data...
+    </div>
+  );
 
   return (
     <div className="space-y-4">
-      {branchData.map((branch, index) => (
+      {branchData.map(branch => (
         <div key={branch.name} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -46,7 +110,9 @@ const BranchPerformance = ({ branches }) => {
             <div>
               <p className="text-xs text-gray-600">Revenue</p>
               <p className="text-lg font-bold text-green-600">
-                ₹{(branch.revenue / 100000).toFixed(1)}L
+                {branch.revenue >= 100000
+                  ? `₹${(branch.revenue / 100000).toFixed(1)}L`
+                  : `₹${(branch.revenue / 1000).toFixed(1)}K`}
               </p>
             </div>
           </div>
