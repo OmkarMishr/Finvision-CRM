@@ -115,7 +115,6 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    console.log('Login attempt:', email)
 
     // Validation
     if (!email || !password) {
@@ -190,7 +189,6 @@ const loginUser = async (req, res) => {
       user: safeUser
     })
 
-    console.log('Login successful:', email, `(${user.role}${user.staffRole ? ' - ' + user.staffRole : ''})`)
 
   } catch (error) {
     console.error('Login Error:', error.message)

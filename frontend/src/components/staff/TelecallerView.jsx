@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { 
+import {
   Plus, Search, Filter, Download, Eye, Edit, Trash2,
   PhoneCall, MessageCircle, UserCheck, Calendar, ArrowRight
 } from 'lucide-react'
@@ -35,12 +35,10 @@ const TelecallerView = ({ onStatsUpdate }) => {
   const fetchLeads = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('fv_token')
-      const response = await axiosInstance.get(API_ENDPOINTS.leads.base, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setLeads(response.data.leads)
-      setFilteredLeads(response.data.leads)
+      const response = await axiosInstance.get(API_ENDPOINTS.leads.base)
+      const data = response.data?.leads || response.data?.data || []
+      setLeads(data)
+      setFilteredLeads(data)
     } catch (error) {
       console.error('Error fetching leads:', error)
     } finally {
@@ -135,21 +133,19 @@ const TelecallerView = ({ onStatsUpdate }) => {
             <div className="flex gap-2 bg-gray-100 rounded-xl p-1">
               <button
                 onClick={() => setView('pipeline')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  view === 'pipeline'
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${view === 'pipeline'
                     ? 'bg-white text-gray-900 shadow'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Pipeline
               </button>
               <button
                 onClick={() => setView('table')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  view === 'table'
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${view === 'table'
                     ? 'bg-white text-gray-900 shadow'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Table
               </button>
@@ -229,14 +225,14 @@ const TelecallerView = ({ onStatsUpdate }) => {
           <p className="text-gray-600">Loading leads...</p>
         </div>
       ) : view === 'pipeline' ? (
-        <LeadPipeline 
-          leads={filteredLeads} 
+        <LeadPipeline
+          leads={filteredLeads}
           onLeadClick={handleViewDetails}
           onLeadUpdated={handleLeadUpdated}
         />
       ) : (
-        <LeadTable 
-          leads={filteredLeads} 
+        <LeadTable
+          leads={filteredLeads}
           onViewDetails={handleViewDetails}
         />
       )}
@@ -287,11 +283,10 @@ const LeadTable = ({ leads, onViewDetails }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                    lead.batchType === 'Paid' 
-                      ? 'bg-green-100 text-green-700' 
+                  <span className={`px-3 py-1 rounded-lg text-xs font-medium ${lead.batchType === 'Paid'
+                      ? 'bg-green-100 text-green-700'
                       : 'bg-orange-100 text-orange-700'
-                  }`}>
+                    }`}>
                     {lead.batchType}
                   </span>
                 </td>

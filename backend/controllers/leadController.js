@@ -16,7 +16,12 @@ const roleBasedQuery = (req) => {
     case 'telecaller':
       return { assignedTelecaller: uid };
     case 'counselor':
-      return { assignedCounselor: uid };
+      return {
+        $or: [
+          { assignedCounselor: uid },
+          { stage: { $in: ['Counselling', 'Lead Conversion', 'Paid Batch', 'Admission'] } }
+        ]
+      };
     default:
       // For teacher or unknown roles, return leads created by them
       return { createdBy: uid };
