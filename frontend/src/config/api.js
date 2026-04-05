@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
   leads: {
     base:             `${API_URL}/api/leads`,
     stats:            `${API_URL}/api/leads/stats/overview`,
+    importSheet:      `${API_URL}/api/leads/import-sheet`,
     byId:             (id) => `${API_URL}/api/leads/${id}`,
     updateStage:      (id) => `${API_URL}/api/leads/${id}/stage`,
     addRemark:        (id) => `${API_URL}/api/leads/${id}/remarks`,

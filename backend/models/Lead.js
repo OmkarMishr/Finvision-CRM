@@ -37,7 +37,7 @@ const leadSchema = new mongoose.Schema(
     // Lead Source
     leadSource: {
       type: String,
-      enum: ['Facebook', 'Google', 'Instagram', 'Referral', 'Walk-in','WhatsApp', 'Other'],
+      enum: ['Facebook', 'Google', 'Instagram', 'Referral', 'Walk-in', 'WhatsApp', 'Other'],
       default: 'Walk-in'
     },
 
@@ -93,22 +93,22 @@ const leadSchema = new mongoose.Schema(
 
     // Remarks & Notes
     remarks: {
-        type: [{
-          note: {
-            type: String,
-            required: true
-          },
-          addedBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-          },
-          addedAt: {
-            type: Date,
-            default: Date.now
-          }
-        }],
-        default: [] 
-      },
+      type: [{
+        note: {
+          type: String,
+          required: true
+        },
+        addedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User'
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      default: []
+    },
 
     // Conversion Tracking
     convertedToPaid: {
@@ -142,7 +142,13 @@ const leadSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
-    }
+    },
+    metaLeadId: {
+      type: String,
+      trim: true,
+      sparse: true,
+      unique: true,
+    },
   },
   {
     timestamps: true

@@ -112,7 +112,7 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
         });
         setSaveMessage('Profile updated successfully!');
         setEditMode(false);
-        
+
         setTimeout(() => setSaveMessage(null), 3000);
       }
     } catch (error) {
@@ -138,8 +138,12 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
                   alt="Profile"
                   className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl shadow-xl border-4 border-white"
                   onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                    if (!e.target) return  // ← guard against null
+                    e.target.style.display = 'none'
+                    const parent = e.target.parentElement
+                    if (parent) {
+                      parent.innerHTML = `<span class="text-sm font-semibold">${studentData?.fullName || 'S'}</span>`
+                    }
                   }}
                 />
               ) : (
@@ -160,9 +164,8 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
               />
               <label
                 htmlFor="photo-upload"
-                className={`flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  uploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all cursor-pointer flex items-center justify-center gap-2 ${uploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 {uploadingPhoto ? (
                   <>
@@ -188,7 +191,7 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
                 </button>
               )}
             </div>
-            
+
             <p className="text-xs text-gray-500 mt-2 text-center">
               Max 5MB • JPG, PNG, GIF
             </p>
@@ -231,11 +234,10 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setEditMode(!editMode)}
-          className={`px-6 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-            editMode
+          className={`px-6 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${editMode
               ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
+            }`}
         >
           {editMode ? (
             <>
@@ -296,11 +298,10 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
             value={editMode ? editedData.dob : studentData.dob ? new Date(studentData.dob).toISOString().split('T')[0] : ''}
             onChange={(e) => setEditedData({ ...editedData, dob: e.target.value })}
             disabled={!editMode}
-            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${
-              editMode
+            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${editMode
                 ? 'bg-white border-blue-300 focus:ring-2 focus:ring-blue-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 cursor-not-allowed'
-            }`}
+              }`}
           />
         </div>
 
@@ -313,11 +314,10 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
             value={editMode ? editedData.gender : studentData.gender}
             onChange={(e) => setEditedData({ ...editedData, gender: e.target.value })}
             disabled={!editMode}
-            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${
-              editMode
+            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${editMode
                 ? 'bg-white border-blue-300 focus:ring-2 focus:ring-blue-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 cursor-not-allowed'
-            }`}
+              }`}
           >
             <option value="">Select Gender</option>
             <option value="Male">Male</option>
@@ -337,11 +337,10 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
             onChange={(e) => setEditedData({ ...editedData, city: e.target.value })}
             disabled={!editMode}
             placeholder="Enter your city"
-            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${
-              editMode
+            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${editMode
                 ? 'bg-white border-blue-300 focus:ring-2 focus:ring-blue-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 cursor-not-allowed'
-            }`}
+              }`}
           />
         </div>
 
@@ -356,11 +355,10 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
             onChange={(e) => setEditedData({ ...editedData, education: e.target.value })}
             disabled={!editMode}
             placeholder="E.g., Bachelor's in Commerce"
-            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${
-              editMode
+            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${editMode
                 ? 'bg-white border-blue-300 focus:ring-2 focus:ring-blue-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 cursor-not-allowed'
-            }`}
+              }`}
           />
         </div>
 
@@ -375,11 +373,10 @@ const StudentDetails = ({ studentData, onDataUpdate }) => {
             onChange={(e) => setEditedData({ ...editedData, fatherName: e.target.value })}
             disabled={!editMode}
             placeholder="Enter father's name"
-            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${
-              editMode
+            className={`w-full px-4 py-2.5 border rounded-xl text-sm ${editMode
                 ? 'bg-white border-blue-300 focus:ring-2 focus:ring-blue-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 cursor-not-allowed'
-            }`}
+              }`}
           />
         </div>
       </div>

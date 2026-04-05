@@ -10,11 +10,11 @@ import { API_ENDPOINTS } from '../../../config/api';
 
 // ─── Stage Badge Config ───────────────────────────────────────────────────────
 const STAGE_CONFIG = {
-  'Enquiry':     { color: 'bg-gray-100 text-gray-700',    dot: 'bg-gray-400'   },
+  'Enquiry': { color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400' },
   'Counselling': { color: 'bg-[#C8294A]/10 text-[#C8294A]', dot: 'bg-[#C8294A]' },
-  'Free Batch':  { color: 'bg-[#1a1a1a]/10 text-[#1a1a1a]', dot: 'bg-[#1a1a1a]' },
-  'Paid Batch':  { color: 'bg-green-100 text-green-700',  dot: 'bg-green-500'  },
-  'Admission':   { color: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-500'   },
+  'Free Batch': { color: 'bg-[#1a1a1a]/10 text-[#1a1a1a]', dot: 'bg-[#1a1a1a]' },
+  'Paid Batch': { color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+  'Admission': { color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
 };
 
 const StageBadge = ({ stage }) => {
@@ -76,12 +76,12 @@ const LeadModal = ({ lead, onClose }) => {
           {/* Contact & Info Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
-              { icon: Phone,    label: 'Mobile',      value: lead.mobile                          },
-              { icon: Mail,     label: 'Email',        value: lead.email                           },
-              { icon: User,     label: 'Assigned To',  value: lead.assignedTo?.name || lead.counselor || 'Unassigned' },
-              { icon: Users,    label: 'Source',       value: lead.source || 'N/A'                },
-              { icon: Calendar, label: 'Created',      value: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'N/A' },
-              { icon: Clock,    label: 'Last Updated', value: lead.updatedAt ? new Date(lead.updatedAt).toLocaleDateString('en-IN') : 'N/A' },
+              { icon: Phone, label: 'Mobile', value: lead.mobile },
+              { icon: Mail, label: 'Email', value: lead.email },
+              { icon: User, label: 'Assigned To', value: lead.assignedCounselor?.firstName? `${lead.assignedCounselor.firstName} ${lead.assignedCounselor.lastName}`: lead.assignedTelecaller?.firstName? `${lead.assignedTelecaller.firstName} ${lead.assignedTelecaller.lastName}`: 'Unassigned'},
+              { icon: Users, label: 'Source', value: lead.source || 'N/A' },
+              { icon: Calendar, label: 'Created', value: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'N/A' },
+              { icon: Clock, label: 'Last Updated', value: lead.updatedAt ? new Date(lead.updatedAt).toLocaleDateString('en-IN') : 'N/A' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <Icon className="w-4 h-4 text-[#C8294A] shrink-0" />
@@ -98,15 +98,14 @@ const LeadModal = ({ lead, onClose }) => {
             <h4 className="font-semibold text-[#1a1a1a] mb-3 text-sm">Lead Pipeline</h4>
             <div className="flex items-center gap-1">
               {['Enquiry', 'Counselling', 'Free Batch', 'Paid Batch', 'Admission'].map((stage, idx, arr) => {
-                const stages   = ['Enquiry', 'Counselling', 'Free Batch', 'Paid Batch', 'Admission'];
-                const current  = stages.indexOf(lead.stage);
-                const thisIdx  = stages.indexOf(stage);
+                const stages = ['Enquiry', 'Counselling', 'Free Batch', 'Paid Batch', 'Admission'];
+                const current = stages.indexOf(lead.stage);
+                const thisIdx = stages.indexOf(stage);
                 const isPassed = thisIdx <= current;
                 return (
                   <React.Fragment key={stage}>
-                    <div className={`flex-1 text-center py-1.5 px-1 rounded text-xs font-medium transition-colors ${
-                      isPassed ? 'bg-[#C8294A] text-white' : 'bg-gray-100 text-gray-400'
-                    }`}>
+                    <div className={`flex-1 text-center py-1.5 px-1 rounded text-xs font-medium transition-colors ${isPassed ? 'bg-[#C8294A] text-white' : 'bg-gray-100 text-gray-400'
+                      }`}>
                       {stage}
                     </div>
                     {idx < arr.length - 1 && (
@@ -157,19 +156,34 @@ const LeadModal = ({ lead, onClose }) => {
 
 // ─── Main LeadsPanel ──────────────────────────────────────────────────────────
 const LeadsPanel = () => {
-  const [leads,          setLeads]          = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [search,         setSearch]         = useState('');
-  const [filterStage,    setFilterStage]    = useState('all');
-  const [filterStaff,    setFilterStaff]    = useState('all');
-  const [filterSource,   setFilterSource]   = useState('all');
-  const [currentPage,    setCurrentPage]    = useState(1);
-  const [selectedLead,   setSelectedLead]   = useState(null);
-  const [deleteConfirm,  setDeleteConfirm]  = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterStage, setFilterStage] = useState('all');
+  const [filterStaff, setFilterStaff] = useState('all');
+  const [filterSource, setFilterSource] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const PER_PAGE = 10;
 
-  useEffect(() => { fetchLeads(); }, []);
+  // Runs ONCE on mount — imports sheet first, then fetches all leads
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      try {
+        // 1. Pull new leads from Google Sheet into MongoDB silently
+        await axiosInstance.post(API_ENDPOINTS.leads.importSheet);
+      } catch (e) {
+        console.error('Auto sheet import failed:', e);
+        // Non-blocking — still fetch existing leads even if sheet fails
+      }
+      // 2. Now fetch all leads (including newly imported ones)
+      await fetchLeads();
+    };
+    initLoad();
+  }, []);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -177,7 +191,7 @@ const LeadsPanel = () => {
       const res = await axiosInstance.get(API_ENDPOINTS.leads.base);
       const data = Array.isArray(res.data) ? res.data
         : Array.isArray(res.data?.data) ? res.data.data
-        : res.data?.leads || [];
+          : res.data?.leads || [];
       setLeads(data);
     } catch (e) {
       console.error('Error fetching leads:', e);
@@ -187,6 +201,22 @@ const LeadsPanel = () => {
     }
   };
 
+  const importFromSheet = async () => {
+    try {
+      await axiosInstance.post(API_ENDPOINTS.leads.importSheet); // add this endpoint below
+    } catch (e) {
+      console.error('Sheet import error:', e);
+    }
+  };
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      await axiosInstance.post(API_ENDPOINTS.leads.importSheet); // sync sheet first
+    } catch (e) {
+      console.error('Sheet sync failed:', e);
+    }
+    await fetchLeads(); // then reload all leads
+  };
   const handleDelete = async (id) => {
     try {
       await axiosInstance.delete(API_ENDPOINTS.leads.byId(id));
@@ -210,10 +240,10 @@ const LeadsPanel = () => {
 
   // ─── Stats ──────────────────────────────────────────────────────────────
   const stats = {
-    total:       leads.length,
-    enquiry:     leads.filter(l => l.stage === 'Enquiry').length,
+    total: leads.length,
+    enquiry: leads.filter(l => l.stage === 'Enquiry').length,
     counselling: leads.filter(l => l.stage === 'Counselling').length,
-    converted:   leads.filter(l => l.stage === 'Admission').length,
+    converted: leads.filter(l => l.stage === 'Admission').length,
     conversionRate: leads.length > 0
       ? ((leads.filter(l => l.stage === 'Admission').length / leads.length) * 100).toFixed(1)
       : 0
@@ -226,14 +256,14 @@ const LeadsPanel = () => {
       l.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       l.mobile?.includes(search) ||
       l.email?.toLowerCase().includes(search.toLowerCase());
-    const matchStage  = filterStage  === 'all' || l.stage   === filterStage;
-    const matchStaff  = filterStaff  === 'all' || staffName === filterStaff;
-    const matchSource = filterSource === 'all' || l.source  === filterSource;
+    const matchStage = filterStage === 'all' || l.stage === filterStage;
+    const matchStaff = filterStaff === 'all' || staffName === filterStaff;
+    const matchSource = filterSource === 'all' || l.source === filterSource;
     return matchSearch && matchStage && matchStaff && matchSource;
   });
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paginated  = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+  const paginated = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   const exportCSV = () => {
     const headers = ['Name', 'Mobile', 'Email', 'Stage', 'Source', 'Assigned To', 'Remarks Count', 'Created'];
@@ -243,9 +273,9 @@ const LeadsPanel = () => {
       l.remarks?.length || 0,
       l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN') : ''
     ]);
-    const csv  = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const a    = Object.assign(document.createElement('a'), {
+    const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(blob),
       download: `Leads_${filterStaff !== 'all' ? filterStaff + '_' : ''}${new Date().toISOString().split('T')[0]}.csv`
     });
@@ -271,7 +301,8 @@ const LeadsPanel = () => {
           </p>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <button onClick={fetchLeads}
+          <button
+            onClick={handleRefresh}
             className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
@@ -284,10 +315,10 @@ const LeadsPanel = () => {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={TrendingUp}  label="Total Leads"  value={stats.total}          bg="bg-[#C8294A]"   />
-        <StatCard icon={Phone}       label="Enquiry"      value={stats.enquiry}        bg="bg-[#1a1a1a]"   />
-        <StatCard icon={UserCheck}   label="Counselling"  value={stats.counselling}    bg="bg-orange-500"  />
-        <StatCard icon={CheckCircle} label="Converted"    value={stats.converted}      bg="bg-green-600"   />
+        <StatCard icon={TrendingUp} label="Total Leads" value={stats.total} bg="bg-[#C8294A]" />
+        <StatCard icon={Phone} label="Enquiry" value={stats.enquiry} bg="bg-[#1a1a1a]" />
+        <StatCard icon={UserCheck} label="Counselling" value={stats.counselling} bg="bg-orange-500" />
+        <StatCard icon={CheckCircle} label="Converted" value={stats.converted} bg="bg-green-600" />
       </div>
 
       {/* Stage Pipeline Summary */}
@@ -296,15 +327,14 @@ const LeadsPanel = () => {
         <div className="grid grid-cols-5 gap-2">
           {['Enquiry', 'Counselling', 'Free Batch', 'Paid Batch', 'Admission'].map(stage => {
             const count = leads.filter(l => l.stage === stage).length;
-            const pct   = leads.length > 0 ? ((count / leads.length) * 100).toFixed(0) : 0;
-            const cfg   = STAGE_CONFIG[stage] || { color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
+            const pct = leads.length > 0 ? ((count / leads.length) * 100).toFixed(0) : 0;
+            const cfg = STAGE_CONFIG[stage] || { color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
             return (
               <button
                 key={stage}
                 onClick={() => { setFilterStage(filterStage === stage ? 'all' : stage); setCurrentPage(1); }}
-                className={`p-3 rounded-xl text-center border-2 transition-all ${
-                  filterStage === stage ? 'border-[#C8294A] shadow-md' : 'border-transparent hover:border-gray-200'
-                } ${cfg.color}`}
+                className={`p-3 rounded-xl text-center border-2 transition-all ${filterStage === stage ? 'border-[#C8294A] shadow-md' : 'border-transparent hover:border-gray-200'
+                  } ${cfg.color}`}
               >
                 <p className="text-2xl font-bold">{count}</p>
                 <p className="text-xs font-medium mt-0.5">{stage}</p>
@@ -528,11 +558,10 @@ const LeadsPanel = () => {
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-[#C8294A] text-white'
-                          : 'hover:bg-gray-100 text-gray-600'
-                      }`}>
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
+                        ? 'bg-[#C8294A] text-white'
+                        : 'hover:bg-gray-100 text-gray-600'
+                        }`}>
                       {page}
                     </button>
                   </React.Fragment>

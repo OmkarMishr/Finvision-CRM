@@ -1,5 +1,7 @@
 const Lead     = require('../models/Lead');
 const mongoose = require('mongoose');
+const { getSheetData }        = require('../utils/googleSheets');
+const { mapSheetRowsToLeads } = require('../utils/mapSheetToLead');
 
 // Handles both { userId } and { id } and { _id } shapes from JWT middleware
 const reqUserId = (req) => req.user?.userId || req.user?._id || req.user?.id;
@@ -94,6 +96,31 @@ const getAllLeads = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
+      error:   error.message,
+    });
+  }
+};
+
+const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1AxSbYOQRN2C7TodqFgVEnXlkXjTraT9b09BpsOVo4jc';
+
+// ─── GET /api/leads/from-Google-Sheet ─────────────────────────────────────────────
+const getLeadsFromSheet = async (req, res) => {
+  try {
+    const rows  = await getSheetData(SHEET_ID, 'Sheet1');
+    const leads = mapSheetRowsToLeads(rows);
+
+    res.json({
+      success: true,
+      count:   leads.length,
+      data:    leads,
+      leads,
+      source: 'google_sheet',
+    });
+  } catch (error) {
+    console.error('getLeadsFromSheet error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch leads from Google Sheet',
       error:   error.message,
     });
   }
@@ -545,9 +572,63 @@ const deleteLead = async (req, res) => {
   }
 };
 
+// ─── POST /api/leads/import-sheet ─────────────────────────────────────────
+const importSheetLeadsToMongo = async (req, res) => {
+  try {
+    // Only admins can trigger an import
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+
+    const rows        = await getSheetData(SHEET_ID, 'Sheet1');
+    const sheetLeads  = mapSheetRowsToLeads(rows);
+
+    let imported = 0, skipped = 0, errors = 0;
+
+    for (const lead of sheetLeads) {
+      try {
+        // Skip if mobile OR metaLeadId already exists in DB
+        const exists = await Lead.findOne({
+          $or: [
+            { mobile:     lead.mobile },
+            { metaLeadId: lead.metaLeadId },
+          ],
+        });
+
+        if (exists) { skipped++; continue; }
+
+        // Strip the synthetic _id, let MongoDB generate one
+        const { _id, source, ...leadData } = lead;
+
+        await Lead.create({
+          ...leadData,
+          createdBy: reqUserId(req),  // logged-in admin is the importer
+        });
+
+        imported++;
+      } catch (rowErr) {
+        console.error('Row import error:', rowErr.message);
+        errors++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Import complete`,
+      imported,
+      skipped,
+      errors,
+      total: sheetLeads.length,
+    });
+  } catch (error) {
+    console.error('importSheetLeadsToMongo error:', error);
+    res.status(500).json({ success: false, message: 'Import failed', error: error.message });
+  }
+};
 
 module.exports = {
   getAllLeads,
+  getLeadsFromSheet,
   createLead,
   updateLeadStage,
   addRemark,
@@ -555,4 +636,5 @@ module.exports = {
   getLeadStats,
   getLeadById,
   deleteLead,
+  importSheetLeadsToMongo,
 };

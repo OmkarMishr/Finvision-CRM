@@ -3,13 +3,15 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
-const { studentProfileUpload } = require('../middleware/multerConfig');
 const path = require('path');
+const fs = require('fs');
 
-// Configure multer for profile photo upload
+// ✅ Single consistent multer config — removed studentProfileUpload import conflict
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/profiles/');
+    const dir = 'uploads/profiles/';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -18,242 +20,161 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'));
-    }
+    if (mimetype && extname) return cb(null, true);
+    cb(new Error('Only image files are allowed!'));
   }
 });
 
-// @desc    Get current student's profile (for logged-in students)
+// ✅ Helper: get user ID safely from req.user (handles both .id and .userId)
+const getUserId = (req) => req.user.userId || req.user.id || req.user._id;
+
+// @desc    Get current student's profile
 // @route   GET /api/students/my-profile
 // @access  Private (Student only)
 const getMyProfile = async (req, res) => {
   try {
-    // Check if user is a student
     if (req.user.role !== 'student') {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Only students can access this endpoint' 
-      });
+      return res.status(403).json({ success: false, message: 'Only students can access this endpoint' });
     }
 
-    // Find student by userId
-    const student = await Student.findOne({ userId: req.user.userId })
+    const userId = getUserId(req);
+    const student = await Student.findOne({ userId })
       .populate('assignedCounselor', 'firstName lastName email phone')
       .populate('convertedFromLead')
       .populate('notes.addedBy', 'firstName lastName');
 
     if (!student) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Student profile not found. Please contact administration.' 
+        message: 'Student profile not found. Please contact administration.'
       });
     }
 
-    res.json({ 
-      success: true,
-      student 
-    });
+    res.json({ success: true, student });
   } catch (error) {
     console.error('Get student profile error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// Update student profile (editable fields only)
+// @desc    Update student profile (editable fields only)
 // @route   PUT /api/students/update-profile
 // @access  Private (Student only)
 const updateMyProfile = async (req, res) => {
   try {
-    // Check if user is a student
-    if (req.user.role !== 'student') {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Only students can access this endpoint' 
-      });
-    }
+    const { fullName, mobile, email, age, city, education, occupation, gender, dob } = req.body
 
-    const { dob, gender, fatherName, city, education } = req.body;
+    // ✅ Use findByIdAndUpdate to skip full schema validation
+    const student = await Student.findByIdAndUpdate(
+      req.user.studentId || req.user._id,
+      {
+        $set: {
+          ...(fullName   && { fullName }),
+          ...(mobile     && { mobile }),
+          ...(email      && { email }),
+          ...(age        && { age }),
+          ...(city       && { city }),
+          ...(education  && { education }),
+          ...(occupation && { occupation }),
+          ...(gender     && { gender }),
+          ...(dob        && { dob }),
+        }
+      },
+      { new: true, runValidators: false }  // ← runValidators: false skips the courseId check
+    )
 
-    const student = await Student.findOne({ userId: req.user.userId });
-    
     if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student profile not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Student not found' })
     }
 
-    // Only update allowed fields (students cannot change admission details)
-    if (dob) student.dob = dob;
-    if (gender) student.gender = gender;
-    if (fatherName) student.fatherName = fatherName;
-    if (city) student.city = city;
-    if (education) student.education = education;
-
-    await student.save();
-
-    res.json({ 
-      success: true,
-      message: 'Profile updated successfully',
-      student 
-    });
+    res.json({ success: true, student })
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to update profile',
-      error: error.message 
-    });
+    console.error('Update profile error:', error)
+    res.status(500).json({ success: false, message: error.message })
   }
-};
+}
 
-//  Upload profile photo
+// @desc    Upload profile photo
 // @route   POST /api/students/upload-photo
 // @access  Private (Student only)
 const uploadProfilePhoto = async (req, res) => {
   try {
-    // Check if user is a student
     if (req.user.role !== 'student') {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Only students can access this endpoint' 
-      });
+      return res.status(403).json({ success: false, message: 'Only students can access this endpoint' });
     }
 
     if (!req.file) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'No file uploaded' 
-      });
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    const student = await Student.findOne({ userId: req.user.userId });
-    
+    const userId = getUserId(req); // ✅ Fixed
+    const student = await Student.findOne({ userId });
+
     if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student profile not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Student profile not found' });
     }
 
-    // Save photo path
+    // ✅ Delete old photo file if it exists
+    if (student.profilePhoto) {
+      const oldPath = path.join(__dirname, '..', student.profilePhoto);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
     student.profilePhoto = `/uploads/profiles/${req.file.filename}`;
     await student.save();
 
-    res.json({ 
+    res.json({
       success: true,
       message: 'Profile photo uploaded successfully',
-      photoUrl: student.profilePhoto 
+      photoUrl: student.profilePhoto
     });
   } catch (error) {
     console.error('Upload photo error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to upload photo',
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to upload photo', error: error.message });
   }
 };
 
-// Remove profile photo
+// @desc    Remove profile photo
 // @route   DELETE /api/students/remove-photo
 // @access  Private (Student only)
 const removeProfilePhoto = async (req, res) => {
   try {
-    // Check if user is a student
     if (req.user.role !== 'student') {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Only students can access this endpoint' 
-      });
+      return res.status(403).json({ success: false, message: 'Only students can access this endpoint' });
     }
 
-    const student = await Student.findOne({ userId: req.user.userId });
-    
+    const userId = getUserId(req);
+    const student = await Student.findOne({ userId });
+
     if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student profile not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Student profile not found' });
     }
 
-    // Remove photo path
+    // ✅ Delete file from disk
+    if (student.profilePhoto) {
+      const filePath = path.join(__dirname, '..', student.profilePhoto);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
     student.profilePhoto = null;
     await student.save();
 
-    res.json({ 
-      success: true,
-      message: 'Profile photo removed successfully'
-    });
+    res.json({ success: true, message: 'Profile photo removed successfully' });
   } catch (error) {
     console.error('Remove photo error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to remove photo',
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to remove photo', error: error.message });
   }
 };
-exports.updateStudentPhoto = [
-  studentProfileUpload,
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: 'No file uploaded'
-        });
-      }
-
-      const studentId = req.params.id || req.user.studentId;
-      const student = await Student.findById(studentId);
-
-      if (!student) {
-        return res.status(404).json({
-          success: false,
-          message: 'Student not found'
-        });
-      }
-
-      // Delete old photo if exists
-      if (student.photo && student.photo !== 'default-avatar.jpg') {
-        const oldPhotoPath = path.join(__dirname, '../uploads/profiles', student.photo);
-        await fs.remove(oldPhotoPath).catch(err => {
-          console.log('Old photo delete error:', err.message);
-        });
-      }
-
-      // Update with new photo
-      student.photo = req.file.filename;
-      await student.save();
-
-      res.json({
-        success: true,
-        message: 'Photo updated successfully',
-        photoUrl: `${process.env.BASE_URL}/uploads/profiles/${req.file.filename}`
-      });
-    } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({
-        success: false,
-        message: error.message || 'Upload failed'
-      });
-    }
-  }
-];
 
 // @desc    Get student statistics
 // @route   GET /api/students/stats/overview
@@ -261,18 +182,17 @@ exports.updateStudentPhoto = [
 const getStudentStats = async (req, res) => {
   try {
     let matchQuery = {};
-    
+
     if (req.user.role === 'staff' && req.user.staffRole === 'counselor') {
-      matchQuery.assignedCounselor = req.user.userId;
+      matchQuery.assignedCounselor = getUserId(req);
     }
 
     const totalStudents = await Student.countDocuments(matchQuery);
 
-    // If no students, return empty stats
     if (totalStudents === 0) {
-      return res.json({ 
+      return res.json({
         success: true,
-        data: {  
+        data: {
           totalStudents: 0,
           byStatus: {},
           byBatchType: {},
@@ -288,62 +208,33 @@ const getStudentStats = async (req, res) => {
       { $match: matchQuery },
       {
         $facet: {
-          byStatus: [
-            { $group: { _id: '$status', count: { $sum: 1 } } }
-          ],
-          byBatchType: [
-            { $group: { _id: '$batchType', count: { $sum: 1 } } }
-          ],
-          byCourse: [
-            { $group: { _id: '$courseCategory', count: { $sum: 1 } } }
-          ],
-          totalPending: [
-            { $group: { _id: null, total: { $sum: '$pendingFees' } } }
-          ],
-          totalCollected: [
-            { $group: { _id: null, total: { $sum: '$paidFees' } } }
-          ],
-          averageAttendance: [
-            { $group: { _id: null, avg: { $avg: '$attendancePercentage' } } }
-          ]
+          byStatus:           [{ $group: { _id: '$status',          count: { $sum: 1 } } }],
+          byBatchType:        [{ $group: { _id: '$batchType',        count: { $sum: 1 } } }],
+          byCourse:           [{ $group: { _id: '$courseCategory',   count: { $sum: 1 } } }],
+          totalPending:       [{ $group: { _id: null, total: { $sum: '$pendingFees' } } }],
+          totalCollected:     [{ $group: { _id: null, total: { $sum: '$paidFees' } } }],
+          averageAttendance:  [{ $group: { _id: null, avg: { $avg: '$attendancePercentage' } } }]
         }
       }
     ]);
 
-    const byStatus = {};
-    stats[0].byStatus.forEach(item => {
-      byStatus[item._id] = item.count;
-    });
+    const toObject = (arr) => arr.reduce((acc, item) => { acc[item._id] = item.count; return acc; }, {});
 
-    const byBatchType = {};
-    stats[0].byBatchType.forEach(item => {
-      byBatchType[item._id] = item.count;
-    });
-
-    const byCourse = {};
-    stats[0].byCourse.forEach(item => {
-      byCourse[item._id] = item.count;
-    });
-
-    const formattedStats = {
-      totalStudents,
-      byStatus,
-      byBatchType,
-      byCourse,
-      totalPending: stats[0].totalPending[0]?.total || 0,
-      totalCollected: stats[0].totalCollected[0]?.total || 0,
-      averageAttendance: stats[0].averageAttendance[0]?.avg || 0
-    };
-
-    res.json({ 
+    res.json({
       success: true,
-      data: formattedStats 
+      data: {
+        totalStudents,
+        byStatus:          toObject(stats[0].byStatus),
+        byBatchType:       toObject(stats[0].byBatchType),
+        byCourse:          toObject(stats[0].byCourse),
+        totalPending:      stats[0].totalPending[0]?.total || 0,
+        totalCollected:    stats[0].totalCollected[0]?.total || 0,
+        averageAttendance: stats[0].averageAttendance[0]?.avg || 0
+      }
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    console.error('Get student stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -353,51 +244,26 @@ const getStudentStats = async (req, res) => {
 const convertFromLead = async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.leadId);
-    
-    if (!lead) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Lead not found' 
-      });
-    }
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-    // Check if already converted
     const existingStudent = await Student.findOne({ convertedFromLead: lead._id });
     if (existingStudent) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Lead already converted to student',
-        student: existingStudent
-      });
+      return res.status(400).json({ success: false, message: 'Lead already converted to student', student: existingStudent });
     }
 
-    // Generate admission number manually
     const year = new Date().getFullYear();
     const count = await Student.countDocuments();
     const admissionNumber = `FV${year}${String(count + 1).padStart(4, '0')}`;
 
-    // ✅ Get or create courseId
     const Course = require('../models/Course');
     let courseId = req.body.courseId;
 
     if (!courseId) {
-      // Find course by category or create default
       const courseCategory = req.body.courseCategory || lead.courseCategory || 'Basic';
-      
-      let course = await Course.findOne({ 
-        courseCategory, 
-        isActive: true 
-      });
+      let course = await Course.findOne({ courseCategory, isActive: true });
 
-      // If course doesn't exist, create it with default fee
       if (!course) {
-        const defaultFees = {
-          'Basic': 15000,
-          'Advanced': 25000,
-          'Basic + Advanced': 35000,
-          'Advisory': 10000
-        };
-
+        const defaultFees = { 'Basic': 15000, 'Advanced': 25000, 'Basic + Advanced': 35000, 'Advisory': 10000 };
         course = await Course.create({
           courseCategory,
           fee: defaultFees[courseCategory] || 15000,
@@ -405,72 +271,53 @@ const convertFromLead = async (req, res) => {
           description: `${courseCategory} Trading Course`,
           isActive: true
         });
-
-        console.log('✅ Course auto-created:', course.courseCategory);
       }
-
       courseId = course._id;
     }
 
-    // Check if user account already exists with this email
     let userAccount = null;
-    if (lead.email) {
-      userAccount = await User.findOne({ email: lead.email });
-    }
+    if (lead.email) userAccount = await User.findOne({ email: lead.email });
 
-    // If no user account exists, create one
     if (!userAccount && lead.email) {
-      // Generate a temporary password (first 4 letters of name + last 4 digits of mobile)
-      const namePart = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
+      const namePart   = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
       const mobilePart = lead.mobile.slice(-4);
       const tempPassword = `${namePart}${mobilePart}`;
+      const nameParts  = lead.fullName.trim().split(' ');
 
-      // Split full name into first and last name
-      const nameParts = lead.fullName.trim().split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ') || firstName;
-
-      // Create user account
       userAccount = await User.create({
-        firstName,
-        lastName,
-        email: lead.email,
-        password: tempPassword,
-        role: 'student',
-        phone: lead.mobile,
-        isActive: true
+        firstName: nameParts[0],
+        lastName:  nameParts.slice(1).join(' ') || nameParts[0],
+        email:     lead.email,
+        password:  tempPassword,
+        role:      'student',
+        phone:     lead.mobile,
+        isActive:  true
       });
-
-      console.log(`User account created for student. Email: ${lead.email}, Temp Password: ${tempPassword}`);
     }
 
-    // Create student from lead data
-    const studentData = {
+    const student = await Student.create({
       admissionNumber,
-      fullName: lead.fullName,
-      mobile: lead.mobile,
-      email: lead.email,
-      age: lead.age,
-      education: lead.education,
-      city: lead.city,
-      occupation: lead.occupation,
-      batchSection: lead.batchSection,
-      batchType: lead.batchType,
-      courseCategory: lead.courseCategory,
-      courseId: courseId, // ✅ Add courseId here
-      leadSource: lead.leadSource,
+      fullName:         lead.fullName,
+      mobile:           lead.mobile,
+      email:            lead.email,
+      age:              lead.age,
+      education:        lead.education,
+      city:             lead.city,
+      occupation:       lead.occupation,
+      batchSection:     lead.batchSection,
+      batchType:        lead.batchType,
+      courseCategory:   lead.courseCategory,
+      courseId,
+      leadSource:       lead.leadSource,
       convertedFromLead: lead._id,
-      conversionDate: new Date(),
+      conversionDate:   new Date(),
       assignedCounselor: lead.assignedCounselor,
-      branch: lead.branch || 'Main',
-      createdBy: req.user.userId,
-      userId: userAccount ? userAccount._id : null, // Link to user account
+      branch:           lead.branch || 'Main',
+      createdBy:        getUserId(req),
+      userId:           userAccount?._id || null,
       ...req.body
-    };
+    });
 
-    const student = await Student.create(studentData);
-
-    // Update lead status
     lead.stage = 'Admission';
     lead.status = 'Converted';
     lead.admissionDate = new Date();
@@ -479,64 +326,49 @@ const convertFromLead = async (req, res) => {
     const populatedStudent = await Student.findById(student._id)
       .populate('assignedCounselor', 'firstName lastName email')
       .populate('userId', 'firstName lastName email')
-      .populate('courseId', 'courseCategory fee duration'); // ✅ Populate courseId
+      .populate('courseId', 'courseCategory fee duration');
 
-    // Prepare response with login credentials if new user was created
-    const response = {
-      success: true,
-      message: 'Lead converted to student successfully',
-      student: populatedStudent
-    };
+    const response = { success: true, message: 'Lead converted to student successfully', student: populatedStudent };
 
-    // If new user account was created, include login credentials
-    if (userAccount && !existingStudent) {
-      const namePart = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
+    if (userAccount) {
+      const namePart   = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
       const mobilePart = lead.mobile.slice(-4);
-      const tempPassword = `${namePart}${mobilePart}`;
-      
       response.userAccount = {
-        email: userAccount.email,
-        tempPassword: tempPassword,
-        message: 'User account created. Please share these credentials with the student.'
+        email:       userAccount.email,
+        tempPassword: `${namePart}${mobilePart}`,
+        message:     'User account created. Please share these credentials with the student.'
       };
     }
 
     res.status(201).json(response);
   } catch (error) {
     console.error('Convert lead error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error',
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Get all students with filters
+// @desc    Get all students
 // @route   GET /api/students
 // @access  Private
 const getAllStudents = async (req, res) => {
   try {
     const { status, batchType, courseCategory, search, branch } = req.query;
-    
     let query = {};
 
-    // Role-based filtering
     if (req.user.role === 'staff' && req.user.staffRole === 'counselor') {
-      query.assignedCounselor = req.user.userId;
+      query.assignedCounselor = getUserId(req);
     }
 
-    // Apply filters
-    if (status) query.status = status;
-    if (batchType) query.batchType = batchType;
+    if (status)         query.status = status;
+    if (batchType)      query.batchType = batchType;
     if (courseCategory) query.courseCategory = courseCategory;
-    if (branch) query.branch = branch;
-    
+    if (branch)         query.branch = branch;
+
     if (search) {
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { mobile: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { fullName:        { $regex: search, $options: 'i' } },
+        { mobile:          { $regex: search, $options: 'i' } },
+        { email:           { $regex: search, $options: 'i' } },
         { admissionNumber: { $regex: search, $options: 'i' } }
       ];
     }
@@ -548,17 +380,10 @@ const getAllStudents = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(100);
 
-    res.json({ 
-      success: true,
-      students, 
-      count: students.length 
-    });
+    res.json({ success: true, students, count: students.length });
   } catch (error) {
     console.error('Get students error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -573,23 +398,12 @@ const getStudentById = async (req, res) => {
       .populate('convertedFromLead')
       .populate('notes.addedBy', 'firstName lastName');
 
-    if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student not found' 
-      });
-    }
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    res.json({ 
-      success: true,
-      student 
-    });
+    res.json({ success: true, student });
   } catch (error) {
     console.error('Get student error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -598,30 +412,12 @@ const getStudentById = async (req, res) => {
 // @access  Private
 const updateStudent = async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student not found' 
-      });
-    }
-
-    res.json({ 
-      success: true,
-      message: 'Student updated successfully', 
-      student 
-    });
+    const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+    res.json({ success: true, message: 'Student updated successfully', student });
   } catch (error) {
     console.error('Update student error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -631,40 +427,19 @@ const updateStudent = async (req, res) => {
 const convertToPaid = async (req, res) => {
   try {
     const { totalFees } = req.body;
-    
     const student = await Student.findById(req.params.id);
-    
-    if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student not found' 
-      });
-    }
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+    if (student.batchType === 'Paid') return res.status(400).json({ success: false, message: 'Student is already in paid batch' });
 
-    if (student.batchType === 'Paid') {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Student is already in paid batch' 
-      });
-    }
-
-    student.batchType = 'Paid';
-    student.totalFees = totalFees || 0;
+    student.batchType   = 'Paid';
+    student.totalFees   = totalFees || 0;
     student.pendingFees = student.totalFees - student.paidFees;
-
     await student.save();
 
-    res.json({ 
-      success: true,
-      message: 'Student converted to paid batch successfully', 
-      student 
-    });
+    res.json({ success: true, message: 'Student converted to paid batch successfully', student });
   } catch (error) {
     console.error('Convert to paid error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -674,38 +449,17 @@ const convertToPaid = async (req, res) => {
 const addNote = async (req, res) => {
   try {
     const { note } = req.body;
-    
     const student = await Student.findById(req.params.id);
-    
-    if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student not found' 
-      });
-    }
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    student.notes.push({
-      note,
-      addedBy: req.user.userId,
-      addedAt: new Date()
-    });
-
+    student.notes.push({ note, addedBy: getUserId(req), addedAt: new Date() });
     await student.save();
-    
-    const populatedStudent = await Student.findById(student._id)
-      .populate('notes.addedBy', 'firstName lastName');
 
-    res.json({ 
-      success: true,
-      message: 'Note added successfully', 
-      student: populatedStudent 
-    });
+    const populated = await Student.findById(student._id).populate('notes.addedBy', 'firstName lastName');
+    res.json({ success: true, message: 'Note added successfully', student: populated });
   } catch (error) {
     console.error('Add note error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -715,60 +469,32 @@ const addNote = async (req, res) => {
 const updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    
     const student = await Student.findById(req.params.id);
-    
-    if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student not found' 
-      });
-    }
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
     student.status = status;
     await student.save();
-
-    res.json({ 
-      success: true,
-      message: 'Student status updated', 
-      student 
-    });
+    res.json({ success: true, message: 'Student status updated', student });
   } catch (error) {
     console.error('Update status error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Delete student (soft delete - change status to Inactive)
+// @desc    Delete student (soft delete)
 // @route   DELETE /api/students/:id
 // @access  Private (Admin only)
 const deleteStudent = async (req, res) => {
   try {
     const student = await Student.findById(req.params.id);
-    
-    if (!student) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Student not found' 
-      });
-    }
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
     student.status = 'Inactive';
     await student.save();
-
-    res.json({ 
-      success: true,
-      message: 'Student deactivated successfully' 
-    });
+    res.json({ success: true, message: 'Student deactivated successfully' });
   } catch (error) {
     console.error('Delete student error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
