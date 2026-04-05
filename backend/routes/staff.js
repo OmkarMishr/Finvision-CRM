@@ -8,12 +8,14 @@ const {
   updateStaff,
   deleteStaff,
   updateStaffStatus,
-  resetStaffPassword
+  resetStaffPassword,
+  getTelecallers
 } = require('../controllers/staffController')
 
 const { protect, authorize } = require('../middleware/auth')
 
 router.get('/stats/overview', protect, authorize('admin'), getStaffStats)
+router.get('/telecallers', protect, authorize('admin'), getTelecallers)
 router.get('/',  protect, authorize('admin'),          getAllStaff)
 router.post('/', protect, authorize('admin'),          createStaff)
 

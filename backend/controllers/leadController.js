@@ -626,6 +626,46 @@ const importSheetLeadsToMongo = async (req, res) => {
   }
 };
 
+// ─── PUT /api/leads/:id/assign-telecaller ──────────────────────────────────
+const assignTelecaller = async (req, res) => {
+  try {
+    const { telecallerId } = req.body;
+
+    if (!telecallerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'telecallerId is required',
+      });
+    }
+
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Lead not found' });
+    }
+
+    lead.assignedTelecaller = new mongoose.Types.ObjectId(String(telecallerId));
+
+    // Audit remark
+    lead.remarks.push({
+      note:    `Lead assigned to telecaller by ${req.user.firstName || 'admin'}`,
+      addedBy: reqUserId(req),
+      addedAt: new Date(),
+    });
+
+    await lead.save();
+
+    const populated = await Lead.findById(lead._id)
+      .populate('assignedTelecaller', 'firstName lastName email staffRole')
+      .populate('assignedCounselor',  'firstName lastName email staffRole')
+      .populate('remarks.addedBy',    'firstName lastName');
+
+    res.json({ success: true, message: 'Telecaller assigned', lead: populated, data: populated });
+  } catch (error) {
+    console.error('assignTelecaller error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getAllLeads,
   getLeadsFromSheet,
@@ -637,4 +677,5 @@ module.exports = {
   getLeadById,
   deleteLead,
   importSheetLeadsToMongo,
+  assignTelecaller,
 };

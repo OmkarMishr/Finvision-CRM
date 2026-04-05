@@ -301,6 +301,30 @@ const resetStaffPassword = async (req, res) => {
   }
 }
 
+// ─── GET /api/staff/telecallers ───────────────────────────────────────────────
+const getTelecallers = async (req, res) => {
+  try {
+    const telecallers = await User.find({
+      role:     'staff',
+      staffRole: { $regex: /^telecaller$/i },  // case-insensitive match
+      isActive:  true,
+    }).select('firstName lastName email staffRole')
+
+    res.status(200).json({
+      success: true,
+      count:   telecallers.length,
+      data:    telecallers,
+    })
+  } catch (error) {
+    console.error('getTelecallers error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch telecallers',
+      error:   error.message,
+    })
+  }
+}
+
 module.exports = {
   getAllStaff,
   createStaff,
@@ -309,5 +333,6 @@ module.exports = {
   updateStaff,
   deleteStaff,
   updateStaffStatus,
-  resetStaffPassword
+  resetStaffPassword,
+  getTelecallers
 }
