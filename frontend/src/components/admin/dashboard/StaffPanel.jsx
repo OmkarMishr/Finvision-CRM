@@ -4,7 +4,8 @@ import {
   ChevronLeft, ChevronRight, X, UserCheck, UserX, Shield,
   Briefcase, Clock, CheckCircle, XCircle, User, Plus,
   Phone, Mail, Calendar, ClipboardList, AlertCircle,
-  CheckSquare, Ban, MessageSquare, CalendarDays, TrendingUp
+  CheckSquare, Ban, MessageSquare, CalendarDays, TrendingUp,
+  Pencil
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
@@ -25,6 +26,8 @@ const ROLE_CONFIG = {
   counselor:  { color: 'bg-blue-100   text-blue-700',   dot: 'bg-blue-500'   },
   Teacher:    { color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
 };
+
+const STAFF_ROLES = ['Teacher', 'counselor', 'telecaller'];
 
 const DEPARTMENTS = [
   'Sales', 'Marketing', 'Customer Support', 'Finance', 'HR', 'IT', 'Operations', 'Other'
@@ -92,6 +95,124 @@ const StatCard = ({ icon: Icon, label, value, bg }) => (
     </div>
   </div>
 );
+
+// ─── Change Role Modal ────────────────────────────────────────────────────────
+const ChangeRoleModal = ({ staff, onClose, onSuccess }) => {
+  const [selectedRole, setSelectedRole] = useState(staff?.staffRole || '');
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState('');
+
+  if (!staff) return null;
+
+  const displayName = staff.name || `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || 'Unknown';
+
+  const handleSave = async () => {
+    if (!selectedRole || selectedRole === staff.staffRole) {
+      setError('Please select a different role to change.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await axiosInstance.put(API_ENDPOINTS.staff.update(staff._id), {
+        staffRole: selectedRole,
+      });
+      onSuccess(staff._id, selectedRole);
+      onClose();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to update role. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-full bg-[#C8294A]/10 flex items-center justify-center">
+            <Shield className="w-5 h-5 text-[#C8294A]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-[#1a1a1a]">Change Staff Role</h3>
+            <p className="text-sm text-gray-500 truncate">{displayName}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Current Role */}
+        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+          <p className="text-xs text-gray-500 mb-1.5">Current Role</p>
+          <RoleBadge role={staff.staffRole} />
+        </div>
+
+        {/* Role Options */}
+        <p className="text-sm font-semibold text-gray-700 mb-3">Select New Role</p>
+        <div className="space-y-2 mb-5">
+          {STAFF_ROLES.map(role => {
+            const cfg      = ROLE_CONFIG[role] || { dot: 'bg-gray-400' };
+            const isActive = selectedRole === role;
+            const isCurrent = role === staff.staffRole;
+            return (
+              <button
+                key={role}
+                type="button"
+                onClick={() => { setSelectedRole(role); setError(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                  isActive
+                    ? 'border-[#C8294A] bg-[#C8294A]/5'
+                    : 'border-gray-100 hover:border-gray-200 bg-white'
+                }`}
+              >
+                <span className={`w-3 h-3 rounded-full shrink-0 ${cfg.dot}`} />
+                <span className={`flex-1 text-sm font-medium ${isActive ? 'text-[#C8294A]' : 'text-[#1a1a1a]'}`}>
+                  {role}
+                </span>
+                {isCurrent && (
+                  <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">
+                    Current
+                  </span>
+                )}
+                {isActive && !isCurrent && (
+                  <CheckCircle className="w-4 h-4 text-[#C8294A] shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2.5 rounded-lg mb-4">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !selectedRole || selectedRole === staff.staffRole}
+            className="flex-1 px-4 py-2.5 bg-[#C8294A] text-white rounded-xl text-sm font-semibold hover:bg-[#a8213a] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {saving
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>
+              : <><CheckCircle className="w-4 h-4" /> Save Role</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── Leave Review Modal ───────────────────────────────────────────────────────
 const LeaveReviewModal = ({ leave, onClose, onReviewed }) => {
@@ -186,9 +307,7 @@ const LeaveReviewModal = ({ leave, onClose, onReviewed }) => {
 
           {/* Reason */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1.5">
-              Reason
-            </p>
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1.5">Reason</p>
             <p className="text-sm text-gray-700 leading-relaxed">{leave.reason}</p>
           </div>
 
@@ -201,9 +320,7 @@ const LeaveReviewModal = ({ leave, onClose, onReviewed }) => {
           )}
 
           {/* Applied On */}
-          <p className="text-xs text-gray-400">
-            Applied on {fmtDate(leave.createdAt)}
-          </p>
+          <p className="text-xs text-gray-400">Applied on {fmtDate(leave.createdAt)}</p>
 
           {/* Decision Buttons */}
           <div>
@@ -496,7 +613,6 @@ const LeaveApprovalsTab = () => {
 
   useEffect(() => { fetchLeaves(); }, []);
 
-  // ── Filtered ────────────────────────────────────────────────────────────
   const filtered = leaves.filter(l => {
     const name = l.staffName
       || `${l.staff?.firstName || ''} ${l.staff?.lastName || ''}`.trim() || '';
@@ -542,7 +658,6 @@ const LeaveApprovalsTab = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow p-4 flex flex-col sm:flex-row gap-3 flex-wrap">
-        {/* Search */}
         <div className="relative flex-1 min-w-48">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -558,8 +673,6 @@ const LeaveApprovalsTab = () => {
             </button>
           )}
         </div>
-
-        {/* Status Filter */}
         <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white">
           <option value="all">All Status</option>
@@ -568,8 +681,6 @@ const LeaveApprovalsTab = () => {
           <option value="rejected">Rejected</option>
           <option value="cancelled">Cancelled</option>
         </select>
-
-        {/* Leave Type Filter */}
         <select value={filterType} onChange={e => { setFilterType(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white">
           <option value="all">All Types</option>
@@ -577,12 +688,10 @@ const LeaveApprovalsTab = () => {
             <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
           ))}
         </select>
-
         <button onClick={fetchLeaves}
           className="px-3 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
-
         <div className="flex items-center gap-2 text-sm text-gray-500 px-1">
           <Filter className="w-4 h-4" />
           <span>{filtered.length} results</span>
@@ -598,7 +707,6 @@ const LeaveApprovalsTab = () => {
           </div>
         ) : (
           <>
-            {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
@@ -624,13 +732,10 @@ const LeaveApprovalsTab = () => {
                       || 'Unknown';
                     return (
                       <tr key={l._id || i} className="hover:bg-gray-50 transition-colors">
-                        {/* Staff */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-[#C8294A]/10 flex items-center justify-center shrink-0">
-                              <span className="text-[#C8294A] text-xs font-bold">
-                                {name.charAt(0).toUpperCase()}
-                              </span>
+                              <span className="text-[#C8294A] text-xs font-bold">{name.charAt(0).toUpperCase()}</span>
                             </div>
                             <div>
                               <p className="font-semibold text-[#1a1a1a] text-xs">{name}</p>
@@ -692,7 +797,6 @@ const LeaveApprovalsTab = () => {
                   || 'Unknown';
                 return (
                   <div key={l._id || i} className="p-4 space-y-3">
-                    {/* Top row */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div className="w-9 h-9 rounded-full bg-[#C8294A]/10 flex items-center justify-center shrink-0">
@@ -705,33 +809,19 @@ const LeaveApprovalsTab = () => {
                       </div>
                       <LeaveStatusBadge status={l.status} />
                     </div>
-
-                    {/* Leave info */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <LeaveTypeBadge type={l.leaveType} />
-                      <span className="text-xs text-gray-500">
-                        {fmtDate(l.fromDate)} → {fmtDate(l.toDate)}
-                      </span>
+                      <span className="text-xs text-gray-500">{fmtDate(l.fromDate)} → {fmtDate(l.toDate)}</span>
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-bold">
                         {l.isHalfDay ? '0.5' : (l.totalDays || daysBetween(l.fromDate, l.toDate))}d
                       </span>
                     </div>
-
-                    {/* Reason */}
                     {l.reason && (
-                      <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 line-clamp-2">
-                        {l.reason}
-                      </p>
+                      <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 line-clamp-2">{l.reason}</p>
                     )}
-
-                    {/* Admin remarks */}
                     {l.adminRemarks && (
-                      <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
-                        💬 {l.adminRemarks}
-                      </p>
+                      <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">💬 {l.adminRemarks}</p>
                     )}
-
-                    {/* Footer */}
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-gray-400">Applied {fmtDate(l.createdAt)}</p>
                       {l.status === 'pending' && (
@@ -801,18 +891,19 @@ const LeaveApprovalsTab = () => {
 
 // ─── Main StaffPanel ──────────────────────────────────────────────────────────
 const StaffPanel = () => {
-  const [activeTab,     setActiveTab]     = useState('staff');
-  const [staff,         setStaff]         = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [search,        setSearch]        = useState('');
-  const [filterRole,    setFilterRole]    = useState('all');
-  const [filterDept,    setFilterDept]    = useState('all');
-  const [filterStatus,  setFilterStatus]  = useState('all');
-  const [currentPage,   setCurrentPage]   = useState(1);
-  const [selectedStaff, setSelectedStaff] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [showAddModal,  setShowAddModal]  = useState(false);
-  const [pendingLeaves, setPendingLeaves] = useState(0);  // badge count
+  const [activeTab,       setActiveTab]       = useState('staff');
+  const [staff,           setStaff]           = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [search,          setSearch]          = useState('');
+  const [filterRole,      setFilterRole]      = useState('all');
+  const [filterDept,      setFilterDept]      = useState('all');
+  const [filterStatus,    setFilterStatus]    = useState('all');
+  const [currentPage,     setCurrentPage]     = useState(1);
+  const [selectedStaff,   setSelectedStaff]   = useState(null);
+  const [deleteConfirm,   setDeleteConfirm]   = useState(null);
+  const [showAddModal,    setShowAddModal]    = useState(false);
+  const [pendingLeaves,   setPendingLeaves]   = useState(0);
+  const [changeRoleModal, setChangeRoleModal] = useState(null); // ← NEW
 
   const PER_PAGE = 10;
 
@@ -833,7 +924,6 @@ const StaffPanel = () => {
     finally     { setLoading(false); }
   };
 
-  // Fetch pending leave count for tab badge
   const fetchPendingCount = async () => {
     try {
       const res  = await axiosInstance.get(API_ENDPOINTS.leave.admin.pending);
@@ -848,6 +938,13 @@ const StaffPanel = () => {
       setStaff(prev => prev.filter(s => s._id !== id));
       setDeleteConfirm(null);
     } catch (e) { console.error('Error deleting staff:', e); }
+  };
+
+  // ─── After role changed: patch local state immediately ──────────────────
+  const handleRoleChanged = (staffId, newRole) => {
+    setStaff(prev => prev.map(s =>
+      s._id === staffId ? { ...s, staffRole: newRole } : s
+    ));
   };
 
   const getName = (s) =>
@@ -952,7 +1049,6 @@ const StaffPanel = () => {
         >
           <ClipboardList className="w-4 h-4" />
           Leave Approvals
-          {/* Pending Badge */}
           {pendingLeaves > 0 && (
             <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {pendingLeaves > 9 ? '9+' : pendingLeaves}
@@ -1059,6 +1155,8 @@ const StaffPanel = () => {
                     const name = getName(member);
                     return (
                       <tr key={member._id} className="hover:bg-gray-50 transition-colors">
+
+                        {/* Staff Member */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-[#C8294A]/10 flex items-center justify-center shrink-0 overflow-hidden">
@@ -1072,12 +1170,31 @@ const StaffPanel = () => {
                             </div>
                           </div>
                         </td>
+
+                        {/* Contact */}
                         <td className="px-4 py-3">
                           <p className="text-[#1a1a1a]">{member.phone || '—'}</p>
                           <p className="text-xs text-gray-400">{member.email}</p>
                         </td>
-                        <td className="px-4 py-3"><RoleBadge role={member.staffRole} /></td>
+
+                        {/* Staff Role — inline change button */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <RoleBadge role={member.staffRole} />
+                            <button
+                              onClick={() => setChangeRoleModal(member)}
+                              className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                              title="Change Role"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-[#C8294A]" />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Department */}
                         <td className="px-4 py-3 text-gray-600 text-sm">{member.staffInfo?.department || '—'}</td>
+
+                        {/* Status */}
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
                             member.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
@@ -1087,14 +1204,23 @@ const StaffPanel = () => {
                               : <><XCircle    className="w-3 h-3" /> Inactive</>}
                           </span>
                         </td>
+
+                        {/* Joined */}
                         <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                           {member.createdAt ? new Date(member.createdAt).toLocaleDateString('en-IN') : '—'}
                         </td>
+
+                        {/* Actions */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button onClick={() => setSelectedStaff(member)}
                               className="p-1.5 hover:bg-[#C8294A]/10 hover:text-[#C8294A] text-gray-400 rounded-lg transition-colors" title="View Details">
                               <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setChangeRoleModal(member)}
+                              className="p-1.5 hover:bg-purple-50 hover:text-purple-600 text-gray-400 rounded-lg transition-colors" title="Change Role">
+                              <Shield className="w-4 h-4" />
                             </button>
                             <button onClick={() => setDeleteConfirm(member)}
                               className="p-1.5 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-lg transition-colors" title="Delete Staff">
@@ -1156,6 +1282,16 @@ const StaffPanel = () => {
         <AddStaffModal onClose={() => setShowAddModal(false)} onSuccess={fetchStaff} />
       )}
 
+      {/* Change Role Modal */}
+      {changeRoleModal && (
+        <ChangeRoleModal
+          staff={changeRoleModal}
+          onClose={() => setChangeRoleModal(null)}
+          onSuccess={handleRoleChanged}
+        />
+      )}
+
+      {/* Delete Confirm Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
