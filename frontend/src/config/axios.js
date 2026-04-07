@@ -30,13 +30,15 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      // Handle specific error codes
+      const isAuthLoginRoute = error.config?.url?.includes('/auth/login')
+
       switch (error.response.status) {
         case 401:
-          // Unauthorized - clear token and redirect to login
-          localStorage.removeItem('fv_token')
-          localStorage.removeItem('fv_user')
-          window.location.href = '/login'
+          if (!isAuthLoginRoute) {
+            localStorage.removeItem('fv_token')
+            localStorage.removeItem('fv_user')
+            window.location.href = '/login'
+          }
           break
         case 403:
           console.error('Access forbidden')

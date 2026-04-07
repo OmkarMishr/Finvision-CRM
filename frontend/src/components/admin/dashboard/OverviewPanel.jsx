@@ -17,7 +17,7 @@ const OverviewPanel = () => {
   const [loading, setLoading]           = useState(true);
   const [timeRange, setTimeRange]       = useState('daily');
   const [selectedBranch, setSelectedBranch] = useState('all');
-  const [branches]                      = useState(['Mumbai', 'Delhi', 'Bangalore', 'Pune']);
+  const [branches]                      = useState(['Raipur', 'Bhilai']);
 
   const [dashboardStats, setDashboardStats] = useState({
     leads:      { total: 0, enquiry: 0, counselling: 0, freeBatch: 0, paidBatch: 0, converted: 0, conversionRate: 0 },

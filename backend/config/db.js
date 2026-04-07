@@ -1,45 +1,27 @@
+const dns = require('dns')
+dns.setServers(['8.8.8.8', '1.1.1.1'])
+
 const mongoose = require('mongoose')
 
-class db {
-  constructor() {
-    this.connected = false
-  }
+let isConnectedFlag = false
 
-  async connect() {
-    try {
-      const dbUri = process.env.MONGODB_URI || process.env.MONGODB_ATLAS_URI
-      
-      if (!dbUri) {
-        throw new Error('MONGODB_URI or MONGODB_ATLAS_URI not found in .env')
-      }
-
-      console.log('Connecting to MongoDB...')
-      
-      const conn = await mongoose.connect(dbUri)
-      
-      this.connected = true
-      console.log('MongoDB Connected Successfully')
-      console.log('Database:', conn.connection.name)
-      console.log('Host:', conn.connection.host)
-      
-      // Graceful shutdown
-      process.on('SIGINT', async () => {
-        await mongoose.connection.close()
-        console.log('MongoDB Disconnected (SIGINT)')
-        process.exit(0)
-      })
-      
-      return conn
-      
-    } catch (error) {
-      console.error('MongoDB Connection Failed:', error.message)
-      process.exit(1)
-    }
-  }
-
-  isConnected() {
-    return this.connected
+const connect = async () => {
+  if (isConnectedFlag) return // reuse existing connection
+  
+  try {
+    console.log('Connecting to MongoDB...')
+    await mongoose.connect(process.env.MONGODB_URI)
+    isConnectedFlag = true
+    console.log('MongoDB Connected ')
+  } catch (err) {
+    isConnectedFlag = false
+    console.error('MongoDB Connection Failed:', err.message)
+    throw err // rethrow so caller knows it failed
   }
 }
 
-module.exports = new db()
+const isConnected = () => {
+  return mongoose.connection.readyState === 1
+}
+
+module.exports = { connect, isConnected }

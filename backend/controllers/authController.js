@@ -24,7 +24,7 @@ const generateToken = (userId, role, staffRole = null) => {
 // @access  Public
 const registerUser = async (req, res) => {
   try {
-    console.log('📝 Register attempt:', req.body.email)
+    console.log('Register attempt:', req.body.email)
 
     // Validation
     const errors = validationResult(req)
@@ -62,7 +62,7 @@ const registerUser = async (req, res) => {
     // Save user (triggers pre-save hook for password hashing)
     await user.save()
     
-    console.log('✅ User registered:', user.email, 'Role:', user.role, 'StaffRole:', user.staffRole)
+    console.log('User registered:', user.email, 'Role:', user.role, 'StaffRole:', user.staffRole)
 
     // Generate JWT token with userId
     const token = generateToken(user._id, user.role, user.staffRole)
@@ -90,7 +90,7 @@ const registerUser = async (req, res) => {
     })
 
   } catch (error) {
-    console.error('❌ Register Error:', error.message)
+    console.error('Register Error:', error.message)
     
     // MongoDB duplicate key error
     if (error.code === 11000) {
@@ -115,7 +115,6 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    console.log('🔐 Login attempt:', email)
 
     // Validation
     if (!email || !password) {
@@ -129,7 +128,7 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password')
     
     if (!user) {
-      console.log('❌ User not found:', email)
+      console.log('User not found:', email)
       return res.status(401).json({ 
         success: false,
         message: 'Invalid credentials' 
@@ -138,7 +137,7 @@ const loginUser = async (req, res) => {
 
     // Check if password exists
     if (!user.password) {
-      console.error('⚠️  User has no password:', email)
+      console.error('User has no password:', email)
       return res.status(500).json({ 
         success: false,
         message: 'Account configuration error. Please contact administrator.' 
@@ -149,7 +148,7 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password)
     
     if (!isMatch) {
-      console.log('❌ Invalid password for:', email)
+      console.log(' Invalid password for:', email)
       return res.status(401).json({ 
         success: false,
         message: 'Invalid credentials' 
@@ -158,7 +157,7 @@ const loginUser = async (req, res) => {
 
     // Check if user is active
     if (user.isActive === false) {
-      console.log('⚠️  Account deactivated:', email)
+      console.log('Account deactivated:', email)
       return res.status(403).json({ 
         success: false,
         message: 'Account has been deactivated. Please contact administrator.' 
@@ -190,10 +189,9 @@ const loginUser = async (req, res) => {
       user: safeUser
     })
 
-    console.log('✅ Login successful:', email, `(${user.role}${user.staffRole ? ' - ' + user.staffRole : ''})`)
 
   } catch (error) {
-    console.error('❌ Login Error:', error.message)
+    console.error('Login Error:', error.message)
     res.status(500).json({ 
       success: false,
       message: 'Server error during login' 
@@ -208,7 +206,7 @@ const getProfile = async (req, res) => {
   try {
     const userId = req.user.userId || req.user.id
 
-    console.log('👤 Profile request for user:', userId)
+    console.log('Profile request for user:', userId)
 
     const user = await User.findById(userId).select('-password')
     
@@ -242,7 +240,7 @@ const getProfile = async (req, res) => {
     })
 
   } catch (error) {
-    console.error('❌ Profile Error:', error.message)
+    console.error('Profile Error:', error.message)
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -258,7 +256,7 @@ const getDashboardStats = async (req, res) => {
     const userId = req.user.userId || req.user.id
     const { role, staffRole } = req.user
 
-    console.log('📊 Dashboard stats for:', role, staffRole || '')
+    console.log('Dashboard stats for:', role, staffRole || '')
 
     let stats = {}
 

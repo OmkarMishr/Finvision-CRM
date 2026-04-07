@@ -53,12 +53,12 @@ const BackupRestore = () => {
       return;
     }
 
-    if (!window.confirm('⚠️ WARNING: This will replace all existing data. Are you sure you want to continue?')) {
+    if (!window.confirm(' WARNING: This will replace all existing data. Are you sure you want to continue?')) {
       event.target.value = '';
       return;
     }
 
-    if (!window.confirm('⚠️ FINAL WARNING: This action cannot be undone. All current data will be lost. Continue?')) {
+    if (!window.confirm(' FINAL WARNING: This action cannot be undone. All current data will be lost. Continue?')) {
       event.target.value = '';
       return;
     }

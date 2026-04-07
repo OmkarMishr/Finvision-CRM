@@ -8,13 +8,14 @@ import {
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
 
+
 // ─── Stage Badge Config ───────────────────────────────────────────────────────
 const STAGE_CONFIG = {
-  'Enquiry':     { color: 'bg-gray-100 text-gray-700',    dot: 'bg-gray-400'   },
+  'Enquiry':     { color: 'bg-gray-100 text-gray-700',      dot: 'bg-gray-400'   },
   'Counselling': { color: 'bg-[#C8294A]/10 text-[#C8294A]', dot: 'bg-[#C8294A]' },
   'Free Batch':  { color: 'bg-[#1a1a1a]/10 text-[#1a1a1a]', dot: 'bg-[#1a1a1a]' },
-  'Paid Batch':  { color: 'bg-green-100 text-green-700',  dot: 'bg-green-500'  },
-  'Admission':   { color: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-500'   },
+  'Paid Batch':  { color: 'bg-green-100 text-green-700',    dot: 'bg-green-500'  },
+  'Admission':   { color: 'bg-blue-100 text-blue-700',      dot: 'bg-blue-500'   },
 };
 
 const StageBadge = ({ stage }) => {
@@ -26,6 +27,17 @@ const StageBadge = ({ stage }) => {
     </span>
   );
 };
+
+
+// ─── Helper: resolve assigned staff name from populated fields ────────────────
+const getAssignedName = (lead) => {
+  if (lead.assignedTelecaller?.firstName)
+    return `${lead.assignedTelecaller.firstName} ${lead.assignedTelecaller.lastName}`;
+  if (lead.assignedCounselor?.firstName)
+    return `${lead.assignedCounselor.firstName} ${lead.assignedCounselor.lastName}`;
+  return null;
+};
+
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, bg }) => (
@@ -39,6 +51,7 @@ const StatCard = ({ icon: Icon, label, value, bg }) => (
     </div>
   </div>
 );
+
 
 // ─── Lead Detail Modal ────────────────────────────────────────────────────────
 const LeadModal = ({ lead, onClose }) => {
@@ -76,12 +89,26 @@ const LeadModal = ({ lead, onClose }) => {
           {/* Contact & Info Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
-              { icon: Phone,    label: 'Mobile',      value: lead.mobile                          },
-              { icon: Mail,     label: 'Email',        value: lead.email                           },
-              { icon: User,     label: 'Assigned To',  value: lead.assignedTo?.name || lead.counselor || 'Unassigned' },
-              { icon: Users,    label: 'Source',       value: lead.source || 'N/A'                },
-              { icon: Calendar, label: 'Created',      value: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'N/A' },
-              { icon: Clock,    label: 'Last Updated', value: lead.updatedAt ? new Date(lead.updatedAt).toLocaleDateString('en-IN') : 'N/A' },
+              { icon: Phone,    label: 'Mobile',      value: lead.mobile },
+              { icon: Mail,     label: 'Email',        value: lead.email  },
+              { icon: Phone,    label: 'Assigned Telecaller',
+                value: lead.assignedTelecaller?.firstName
+                  ? `${lead.assignedTelecaller.firstName} ${lead.assignedTelecaller.lastName}`
+                  : 'Unassigned'
+              },
+              { icon: User,     label: 'Assigned Counselor',
+                value: lead.assignedCounselor?.firstName
+                  ? `${lead.assignedCounselor.firstName} ${lead.assignedCounselor.lastName}`
+                  : 'Unassigned'
+              },
+              { icon: Users,    label: 'Source',       value: lead.leadSource || lead.source || 'N/A' },
+              { icon: Calendar, label: 'Created',
+                value: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'N/A'
+              },
+              { icon: Clock,    label: 'Last Updated',
+                value: lead.updatedAt ? new Date(lead.updatedAt).toLocaleDateString('en-IN') : 'N/A'
+              },
+              { icon: CheckCircle, label: 'Status',   value: lead.status || 'N/A' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <Icon className="w-4 h-4 text-[#C8294A] shrink-0" />
@@ -127,7 +154,7 @@ const LeadModal = ({ lead, onClose }) => {
               </h4>
               <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                 {[...lead.remarks]
-                  .sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0))
+                  .sort((a, b) => new Date(b.addedAt || b.timestamp || b.createdAt || 0) - new Date(a.addedAt || a.timestamp || a.createdAt || 0))
                   .map((remark, i) => (
                     <div key={i} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                       <div className="w-7 h-7 rounded-full bg-[#C8294A]/10 flex items-center justify-center shrink-0">
@@ -135,14 +162,18 @@ const LeadModal = ({ lead, onClose }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <p className="text-xs font-semibold text-[#1a1a1a]">{remark.addedBy || 'Staff'}</p>
+                          <p className="text-xs font-semibold text-[#1a1a1a]">
+                            {remark.addedBy?.firstName
+                              ? `${remark.addedBy.firstName} ${remark.addedBy.lastName}`
+                              : typeof remark.addedBy === 'string' ? remark.addedBy : 'Staff'}
+                          </p>
                           <span className="text-xs text-gray-400 shrink-0">
-                            {remark.timestamp || remark.createdAt
-                              ? new Date(remark.timestamp || remark.createdAt).toLocaleDateString('en-IN')
+                            {(remark.addedAt || remark.timestamp || remark.createdAt)
+                              ? new Date(remark.addedAt || remark.timestamp || remark.createdAt).toLocaleDateString('en-IN')
                               : ''}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600">{remark.text}</p>
+                        <p className="text-sm text-gray-600">{remark.note || remark.text}</p>
                       </div>
                     </div>
                   ))}
@@ -155,26 +186,122 @@ const LeadModal = ({ lead, onClose }) => {
   );
 };
 
+
+// ─── Assign Telecaller Modal ──────────────────────────────────────────────────
+const AssignTelecallerModal = ({ lead, telecallers, onAssign, onClose }) => {
+  const [selectedCaller, setSelectedCaller] = useState(
+    lead?.assignedTelecaller?._id || lead?.assignedTelecaller || ''
+  );
+  const [assigning, setAssigning] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!selectedCaller) return;
+    setAssigning(true);
+    await onAssign(lead._id, selectedCaller);
+    setAssigning(false);
+  };
+
+  if (!lead) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <UserCheck className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-[#1a1a1a]">Assign Telecaller</h3>
+            <p className="text-sm text-gray-500 truncate max-w-[200px]">{lead.fullName}</p>
+          </div>
+          <button onClick={onClose} className="ml-auto p-1.5 hover:bg-gray-100 rounded-lg">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Current assignment */}
+        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+          <p className="text-gray-500 text-xs mb-1">Currently assigned to</p>
+          <p className="font-semibold text-[#1a1a1a] text-sm">
+            {lead.assignedTelecaller?.firstName
+              ? `${lead.assignedTelecaller.firstName} ${lead.assignedTelecaller.lastName}`
+              : <span className="text-gray-400 italic font-normal">Unassigned</span>
+            }
+          </p>
+        </div>
+
+        {/* Telecaller dropdown */}
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select Telecaller
+        </label>
+        <select
+          value={selectedCaller}
+          onChange={e => setSelectedCaller(e.target.value)}
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white mb-5">
+          <option value="">— Select a telecaller —</option>
+          {telecallers.map(t => (
+            <option key={t._id} value={t._id}>
+              {t.firstName} {t.lastName}
+            </option>
+          ))}
+        </select>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!selectedCaller || assigning}
+            className="flex-1 px-4 py-2 bg-[#C8294A] text-white rounded-lg text-sm font-medium hover:bg-[#a8213a] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {assigning
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Assigning...</>
+              : <><UserCheck className="w-4 h-4" /> Assign</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 // ─── Main LeadsPanel ──────────────────────────────────────────────────────────
 const LeadsPanel = () => {
-  const [leads,          setLeads]          = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [search,         setSearch]         = useState('');
-  const [filterStage,    setFilterStage]    = useState('all');
-  const [filterStaff,    setFilterStaff]    = useState('all');
-  const [filterSource,   setFilterSource]   = useState('all');
-  const [currentPage,    setCurrentPage]    = useState(1);
-  const [selectedLead,   setSelectedLead]   = useState(null);
-  const [deleteConfirm,  setDeleteConfirm]  = useState(null);
+  const [leads,         setLeads]         = useState([]);
+  const [telecallers,   setTelecallers]   = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [search,        setSearch]        = useState('');
+  const [filterStage,   setFilterStage]   = useState('all');
+  const [filterStaff,   setFilterStaff]   = useState('all');
+  const [filterSource,  setFilterSource]  = useState('all');
+  const [currentPage,   setCurrentPage]   = useState(1);
+  const [selectedLead,  setSelectedLead]  = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [assignModal,   setAssignModal]   = useState(null);
+  const [importStatus,  setImportStatus]  = useState(null);
 
   const PER_PAGE = 10;
 
-  useEffect(() => { fetchLeads(); }, []);
+  // ─── Fetch telecallers for assign dropdown ─────────────────────────────────
+  const fetchTelecallers = async () => {
+    try {
+      const res = await axiosInstance.get(API_ENDPOINTS.staff.telecallers);
+      setTelecallers(res.data?.data || []);
+    } catch (e) {
+      console.error('Failed to fetch telecallers:', e);
+    }
+  };
 
+  // ─── Fetch all leads from MongoDB ──────────────────────────────────────────
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(API_ENDPOINTS.leads.base);
+      const res  = await axiosInstance.get(API_ENDPOINTS.leads.base);
       const data = Array.isArray(res.data) ? res.data
         : Array.isArray(res.data?.data) ? res.data.data
         : res.data?.leads || [];
@@ -187,6 +314,49 @@ const LeadsPanel = () => {
     }
   };
 
+  // ─── Import from Google Sheet ──────────────────────────────────────────────
+  const importFromSheet = async () => {
+    try {
+      const res = await axiosInstance.post(API_ENDPOINTS.leads.importSheet);
+      if (res.data?.success) {
+        setImportStatus({
+          imported: res.data.imported,
+          skipped:  res.data.skipped,
+          errors:   res.data.errors,
+        });
+      }
+    } catch (e) {
+      console.error('Sheet import error:', e);
+    }
+  };
+
+  // ─── On mount: fetch telecallers + import sheet + load leads ──────────────
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      await fetchTelecallers();
+      try {
+        await axiosInstance.post(API_ENDPOINTS.leads.importSheet);
+      } catch (e) {
+        console.error('Auto sheet import failed:', e);
+      }
+      await fetchLeads();
+    };
+    initLoad();
+  }, []);
+
+  // ─── Refresh: re-sync sheet + reload ──────────────────────────────────────
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      await axiosInstance.post(API_ENDPOINTS.leads.importSheet);
+    } catch (e) {
+      console.error('Sheet sync failed:', e);
+    }
+    await fetchLeads();
+  };
+
+  // ─── Delete lead ───────────────────────────────────────────────────────────
   const handleDelete = async (id) => {
     try {
       await axiosInstance.delete(API_ENDPOINTS.leads.byId(id));
@@ -197,57 +367,87 @@ const LeadsPanel = () => {
     }
   };
 
-  // ─── Derived Lists for Filters ──────────────────────────────────────────
+  // ─── Assign telecaller ─────────────────────────────────────────────────────
+  const handleAssignTelecaller = async (leadId, telecallerId) => {
+    try {
+      const res = await axiosInstance.put(
+        API_ENDPOINTS.leads.assignTelecaller(leadId),
+        { telecallerId }
+      );
+      const updatedLead = res.data?.lead || res.data?.data;
+      if (updatedLead) {
+        // Replace the lead in local state with the fully populated response
+        setLeads(prev => prev.map(l => l._id === leadId ? updatedLead : l));
+      } else {
+        // Fallback: patch local state manually
+        const callerObj = telecallers.find(t => t._id === telecallerId);
+        setLeads(prev => prev.map(l =>
+          l._id === leadId ? { ...l, assignedTelecaller: callerObj } : l
+        ));
+      }
+      setAssignModal(null);
+    } catch (e) {
+      console.error('Assign telecaller failed:', e);
+    }
+  };
+
+  // ─── Derived filter lists ──────────────────────────────────────────────────
   const staffList = [...new Set(
-    leads
-      .map(l => l.assignedTo?.name || l.counselor || null)
-      .filter(Boolean)
+    leads.map(l => getAssignedName(l)).filter(Boolean)
   )].sort();
 
   const sourceList = [...new Set(
-    leads.map(l => l.source).filter(Boolean)
+    leads.map(l => l.leadSource || l.source).filter(Boolean)
   )].sort();
 
-  // ─── Stats ──────────────────────────────────────────────────────────────
+  // ─── Stats ─────────────────────────────────────────────────────────────────
   const stats = {
-    total:       leads.length,
-    enquiry:     leads.filter(l => l.stage === 'Enquiry').length,
-    counselling: leads.filter(l => l.stage === 'Counselling').length,
-    converted:   leads.filter(l => l.stage === 'Admission').length,
+    total:          leads.length,
+    enquiry:        leads.filter(l => l.stage === 'Enquiry').length,
+    counselling:    leads.filter(l => l.stage === 'Counselling').length,
+    converted:      leads.filter(l => l.stage === 'Admission').length,
     conversionRate: leads.length > 0
       ? ((leads.filter(l => l.stage === 'Admission').length / leads.length) * 100).toFixed(1)
-      : 0
+      : 0,
   };
 
-  // ─── Filter + Search + Paginate ──────────────────────────────────────────
+  // ─── Filter + Search + Paginate ───────────────────────────────────────────
   const filtered = leads.filter(l => {
-    const staffName = l.assignedTo?.name || l.counselor || '';
+    const staffName   = getAssignedName(l) || '';
+    const src         = l.leadSource || l.source || '';
     const matchSearch = !search ||
       l.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       l.mobile?.includes(search) ||
       l.email?.toLowerCase().includes(search.toLowerCase());
-    const matchStage  = filterStage  === 'all' || l.stage   === filterStage;
+    const matchStage  = filterStage  === 'all' || l.stage === filterStage;
     const matchStaff  = filterStaff  === 'all' || staffName === filterStaff;
-    const matchSource = filterSource === 'all' || l.source  === filterSource;
+    const matchSource = filterSource === 'all' || src === filterSource;
     return matchSearch && matchStage && matchStaff && matchSource;
   });
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated  = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
+  // ─── Export CSV ────────────────────────────────────────────────────────────
   const exportCSV = () => {
-    const headers = ['Name', 'Mobile', 'Email', 'Stage', 'Source', 'Assigned To', 'Remarks Count', 'Created'];
+    const headers = ['Name','Mobile','Email','Stage','Source','Assigned Telecaller','Assigned Counselor','Remarks Count','Created'];
     const rows = filtered.map(l => [
-      l.fullName, l.mobile, l.email, l.stage, l.source || '',
-      l.assignedTo?.name || l.counselor || 'Unassigned',
+      l.fullName, l.mobile, l.email, l.stage,
+      l.leadSource || l.source || '',
+      l.assignedTelecaller?.firstName
+        ? `${l.assignedTelecaller.firstName} ${l.assignedTelecaller.lastName}`
+        : 'Unassigned',
+      l.assignedCounselor?.firstName
+        ? `${l.assignedCounselor.firstName} ${l.assignedCounselor.lastName}`
+        : 'Unassigned',
       l.remarks?.length || 0,
-      l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN') : ''
+      l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN') : '',
     ]);
-    const csv  = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const csv  = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const a    = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `Leads_${filterStaff !== 'all' ? filterStaff + '_' : ''}${new Date().toISOString().split('T')[0]}.csv`
+      href:     URL.createObjectURL(blob),
+      download: `Leads_${filterStaff !== 'all' ? filterStaff + '_' : ''}${new Date().toISOString().split('T')[0]}.csv`,
     });
     a.click();
   };
@@ -271,23 +471,43 @@ const LeadsPanel = () => {
           </p>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <button onClick={fetchLeads}
+          <button
+            onClick={handleRefresh}
             className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
-          <button onClick={exportCSV}
+          <button
+            onClick={exportCSV}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" /> Export CSV
           </button>
         </div>
       </div>
 
+      {/* Sheet Import Status Banner */}
+      {importStatus && (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle className="w-4 h-4 text-green-600" />
+            <span className="text-green-800 font-medium">Google Sheet synced —</span>
+            <span className="text-green-700">
+              ✅ {importStatus.imported} imported &nbsp;·&nbsp;
+              ⏭️ {importStatus.skipped} skipped
+              {importStatus.errors > 0 && ` · ❌ ${importStatus.errors} errors`}
+            </span>
+          </div>
+          <button onClick={() => setImportStatus(null)}>
+            <X className="w-4 h-4 text-green-600 hover:text-green-800" />
+          </button>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={TrendingUp}  label="Total Leads"  value={stats.total}          bg="bg-[#C8294A]"   />
-        <StatCard icon={Phone}       label="Enquiry"      value={stats.enquiry}        bg="bg-[#1a1a1a]"   />
-        <StatCard icon={UserCheck}   label="Counselling"  value={stats.counselling}    bg="bg-orange-500"  />
-        <StatCard icon={CheckCircle} label="Converted"    value={stats.converted}      bg="bg-green-600"   />
+        <StatCard icon={TrendingUp}  label="Total Leads" value={stats.total}       bg="bg-[#C8294A]"  />
+        <StatCard icon={Phone}       label="Enquiry"     value={stats.enquiry}     bg="bg-[#1a1a1a]"  />
+        <StatCard icon={UserCheck}   label="Counselling" value={stats.counselling} bg="bg-orange-500" />
+        <StatCard icon={CheckCircle} label="Converted"   value={stats.converted}   bg="bg-green-600"  />
       </div>
 
       {/* Stage Pipeline Summary */}
@@ -304,8 +524,7 @@ const LeadsPanel = () => {
                 onClick={() => { setFilterStage(filterStage === stage ? 'all' : stage); setCurrentPage(1); }}
                 className={`p-3 rounded-xl text-center border-2 transition-all ${
                   filterStage === stage ? 'border-[#C8294A] shadow-md' : 'border-transparent hover:border-gray-200'
-                } ${cfg.color}`}
-              >
+                } ${cfg.color}`}>
                 <p className="text-2xl font-bold">{count}</p>
                 <p className="text-xs font-medium mt-0.5">{stage}</p>
                 <p className="text-xs opacity-70">{pct}%</p>
@@ -335,12 +554,11 @@ const LeadsPanel = () => {
           )}
         </div>
 
-        {/* Staff Filter — KEY FEATURE */}
+        {/* Staff Filter */}
         <select
           value={filterStaff}
           onChange={e => { setFilterStaff(e.target.value); setCurrentPage(1); }}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white min-w-40"
-        >
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white min-w-40">
           <option value="all">All Staff</option>
           {staffList.map(staff => (
             <option key={staff} value={staff}>{staff}</option>
@@ -352,8 +570,7 @@ const LeadsPanel = () => {
         <select
           value={filterStage}
           onChange={e => { setFilterStage(e.target.value); setCurrentPage(1); }}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white"
-        >
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white">
           <option value="all">All Stages</option>
           {['Enquiry', 'Counselling', 'Free Batch', 'Paid Batch', 'Admission'].map(s => (
             <option key={s} value={s}>{s}</option>
@@ -365,8 +582,7 @@ const LeadsPanel = () => {
           <select
             value={filterSource}
             onChange={e => { setFilterSource(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white"
-          >
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A] bg-white">
             <option value="all">All Sources</option>
             {sourceList.map(s => (
               <option key={s} value={s}>{s}</option>
@@ -451,20 +667,31 @@ const LeadsPanel = () => {
 
                   {/* Source */}
                   <td className="px-4 py-3 text-gray-600 text-xs">
-                    {lead.source || '—'}
+                    {lead.leadSource || lead.source || '—'}
                   </td>
 
-                  {/* Assigned Staff */}
+                  {/* Assigned Staff — shows telecaller, falls back to counselor */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-[#1a1a1a]/10 flex items-center justify-center">
                         <User className="w-3 h-3 text-[#1a1a1a]" />
                       </div>
-                      <span className="text-sm text-[#1a1a1a]">
-                        {lead.assignedTo?.name || lead.counselor || (
-                          <span className="text-gray-400 italic">Unassigned</span>
+                      <div>
+                        <span className="text-sm text-[#1a1a1a]">
+                          {lead.assignedTelecaller?.firstName
+                            ? `${lead.assignedTelecaller.firstName} ${lead.assignedTelecaller.lastName}`
+                            : lead.assignedCounselor?.firstName
+                              ? `${lead.assignedCounselor.firstName} ${lead.assignedCounselor.lastName}`
+                              : <span className="text-gray-400 italic">Unassigned</span>
+                          }
+                        </span>
+                        {lead.assignedTelecaller?.firstName && (
+                          <p className="text-xs text-gray-400">Telecaller</p>
                         )}
-                      </span>
+                        {!lead.assignedTelecaller?.firstName && lead.assignedCounselor?.firstName && (
+                          <p className="text-xs text-gray-400">Counselor</p>
+                        )}
+                      </div>
                     </div>
                   </td>
 
@@ -478,21 +705,27 @@ const LeadsPanel = () => {
 
                   {/* Created */}
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                    {lead.createdAt
-                      ? new Date(lead.createdAt).toLocaleDateString('en-IN')
-                      : 'N/A'
-                    }
+                    {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'N/A'}
                   </td>
 
                   {/* Actions */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      {/* View */}
                       <button
                         onClick={() => setSelectedLead(lead)}
                         className="p-1.5 hover:bg-[#C8294A]/10 hover:text-[#C8294A] text-gray-400 rounded-lg transition-colors"
                         title="View Details">
                         <Eye className="w-4 h-4" />
                       </button>
+                      {/* Assign Telecaller */}
+                      <button
+                        onClick={() => setAssignModal(lead)}
+                        className="p-1.5 hover:bg-blue-50 hover:text-blue-600 text-gray-400 rounded-lg transition-colors"
+                        title="Assign Telecaller">
+                        <UserCheck className="w-4 h-4" />
+                      </button>
+                      {/* Delete */}
                       <button
                         onClick={() => setDeleteConfirm(lead)}
                         className="p-1.5 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-lg transition-colors"
@@ -529,9 +762,7 @@ const LeadsPanel = () => {
                     <button
                       onClick={() => setCurrentPage(page)}
                       className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-[#C8294A] text-white'
-                          : 'hover:bg-gray-100 text-gray-600'
+                        currentPage === page ? 'bg-[#C8294A] text-white' : 'hover:bg-gray-100 text-gray-600'
                       }`}>
                       {page}
                     </button>
@@ -551,6 +782,16 @@ const LeadsPanel = () => {
       {/* Lead Detail Modal */}
       {selectedLead && (
         <LeadModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      )}
+
+      {/* Assign Telecaller Modal */}
+      {assignModal && (
+        <AssignTelecallerModal
+          lead={assignModal}
+          telecallers={telecallers}
+          onAssign={handleAssignTelecaller}
+          onClose={() => setAssignModal(null)}
+        />
       )}
 
       {/* Delete Confirm Modal */}

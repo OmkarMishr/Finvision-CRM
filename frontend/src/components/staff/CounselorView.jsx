@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { 
-  Users, TrendingUp, CheckCircle, Clock, Search, 
-  Eye, PhoneCall, MessageSquare, Calendar
+import {
+  Users, TrendingUp, CheckCircle, Clock, Search,
+  Eye, PhoneCall
 } from 'lucide-react'
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
@@ -32,16 +32,25 @@ const CounselorView = ({ onStatsUpdate }) => {
     calculateStats()
   }, [searchQuery, filterStage, leads])
 
+  // ✅ Mirrors TelecallerView's working fetch pattern exactly
   const fetchLeads = async () => {
     try {
       setLoading(true)
       const token = localStorage.getItem('fv_token')
-      const response = await axios.get(API_ENDPOINTS.leads.base, {
+      const response = await axiosInstance.get(API_ENDPOINTS.leads.base, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setLeads(response.data.leads)
+
+      // ✅ Same safe parsing as TelecallerView
+      const data = response.data?.leads || response.data?.data || []
+      console.log('CounselorView leads fetched:', data.length)
+
+      setLeads(data)
+      setFilteredLeads(data)
     } catch (error) {
       console.error('Error fetching leads:', error)
+      setLeads([])
+      setFilteredLeads([])
     } finally {
       setLoading(false)
     }
@@ -50,15 +59,13 @@ const CounselorView = ({ onStatsUpdate }) => {
   const applyFilters = () => {
     let filtered = [...leads]
 
-    // Search filter
     if (searchQuery) {
       filtered = filtered.filter(lead =>
-        lead.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.mobile.includes(searchQuery)
+        lead.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.mobile?.includes(searchQuery)
       )
     }
 
-    // Stage filter
     if (filterStage) {
       filtered = filtered.filter(lead => lead.stage === filterStage)
     }
@@ -67,20 +74,23 @@ const CounselorView = ({ onStatsUpdate }) => {
   }
 
   const calculateStats = () => {
+    // ✅ Stats computed from all leads (not filtered), same as TelecallerView
     const counsellingLeads = leads.filter(l => l.stage === 'Counselling')
-    const convertedLeads = leads.filter(l => l.convertedToPaid)
-    const totalProcessed = leads.filter(l => 
+    const convertedLeads   = leads.filter(l => l.convertedToPaid === true)
+    const totalProcessed   = leads.filter(l =>
       ['Lead Conversion', 'Paid Batch', 'Admission'].includes(l.stage)
     )
-    
-    setStats({
+
+    const newStats = {
       totalInCounselling: counsellingLeads.length,
-      converted: convertedLeads.length,
-      pending: counsellingLeads.length,
-      conversionRate: totalProcessed.length > 0 
-        ? Math.round((convertedLeads.length / totalProcessed.length) * 100) 
+      converted:          convertedLeads.length,
+      pending:            counsellingLeads.length,
+      conversionRate:     totalProcessed.length > 0
+        ? Math.round((convertedLeads.length / totalProcessed.length) * 100)
         : 0
-    })
+    }
+
+    setStats(newStats)
   }
 
   const handleViewDetails = (lead) => {
@@ -90,15 +100,15 @@ const CounselorView = ({ onStatsUpdate }) => {
 
   const handleLeadUpdated = () => {
     fetchLeads()
-    onStatsUpdate()
+    onStatsUpdate?.()
     setShowDetailsModal(false)
   }
 
   const statsCards = [
-    { label: 'In Counselling', value: stats.totalInCounselling, color: 'bg-blue-500', icon: Users },
-    { label: 'Converted', value: stats.converted, color: 'bg-green-500', icon: CheckCircle },
-    { label: 'Pending', value: stats.pending, color: 'bg-orange-500', icon: Clock },
-    { label: 'Conversion Rate', value: `${stats.conversionRate}%`, color: 'bg-purple-500', icon: TrendingUp }
+    { label: 'In Counselling', value: stats.totalInCounselling, color: 'bg-blue-500',   icon: Users        },
+    { label: 'Converted',      value: stats.converted,          color: 'bg-green-500',  icon: CheckCircle  },
+    { label: 'Pending',        value: stats.pending,            color: 'bg-orange-500', icon: Clock        },
+    { label: 'Conversion Rate',value: `${stats.conversionRate}%`,color: 'bg-purple-500',icon: TrendingUp   }
   ]
 
   return (
@@ -108,8 +118,8 @@ const CounselorView = ({ onStatsUpdate }) => {
         {statsCards.map((stat, index) => {
           const Icon = stat.icon
           return (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <div className="flex items-center justify-between mb-3">
@@ -128,9 +138,8 @@ const CounselorView = ({ onStatsUpdate }) => {
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">Counselling Queue</h2>
-          
+
           <div className="flex items-center gap-3">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -142,7 +151,6 @@ const CounselorView = ({ onStatsUpdate }) => {
               />
             </div>
 
-            {/* Stage Filter */}
             <select
               value={filterStage}
               onChange={(e) => setFilterStage(e.target.value)}
@@ -156,7 +164,6 @@ const CounselorView = ({ onStatsUpdate }) => {
           </div>
         </div>
 
-        {/* Leads Table */}
         {loading ? (
           <div className="text-center py-12">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -191,8 +198,8 @@ const CounselorView = ({ onStatsUpdate }) => {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                        lead.batchType === 'Paid' 
-                          ? 'bg-green-100 text-green-700' 
+                        lead.batchType === 'Paid'
+                          ? 'bg-green-100 text-green-700'
                           : 'bg-orange-100 text-orange-700'
                       }`}>
                         {lead.batchType}
@@ -200,8 +207,8 @@ const CounselorView = ({ onStatsUpdate }) => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{lead.courseCategory}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {lead.followUpDate 
-                        ? new Date(lead.followUpDate).toLocaleDateString() 
+                      {lead.followUpDate
+                        ? new Date(lead.followUpDate).toLocaleDateString()
                         : '-'}
                     </td>
                     <td className="px-6 py-4">
@@ -227,7 +234,7 @@ const CounselorView = ({ onStatsUpdate }) => {
               </tbody>
             </table>
 
-            {filteredLeads.length === 0 && (
+            {filteredLeads.length === 0 && !loading && (
               <div className="text-center py-12">
                 <p className="text-gray-500">No leads found</p>
               </div>
@@ -236,7 +243,6 @@ const CounselorView = ({ onStatsUpdate }) => {
         )}
       </div>
 
-      {/* Details Modal */}
       {showDetailsModal && selectedLead && (
         <LeadDetailsModal
           lead={selectedLead}
@@ -250,12 +256,12 @@ const CounselorView = ({ onStatsUpdate }) => {
 
 const getStageColor = (stage) => {
   const colors = {
-    'Enquiry': 'bg-gray-100 text-gray-700',
-    'Counselling': 'bg-blue-100 text-blue-700',
-    'Free Batch': 'bg-yellow-100 text-yellow-700',
-    'Lead Conversion': 'bg-purple-100 text-purple-700',
-    'Paid Batch': 'bg-green-100 text-green-700',
-    'Admission': 'bg-indigo-100 text-indigo-700'
+    'Enquiry':        'bg-gray-100 text-gray-700',
+    'Counselling':    'bg-blue-100 text-blue-700',
+    'Free Batch':     'bg-yellow-100 text-yellow-700',
+    'Lead Conversion':'bg-purple-100 text-purple-700',
+    'Paid Batch':     'bg-green-100 text-green-700',
+    'Admission':      'bg-indigo-100 text-indigo-700'
   }
   return colors[stage] || 'bg-gray-100 text-gray-700'
 }
