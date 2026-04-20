@@ -220,9 +220,9 @@ const MarkAttendance = () => {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">``
               {[
-                { icon: Clock,       color: 'text-blue-500',   bg: 'bg-blue-50',   text: 'Office hours: 11:00 AM – 8:00 PM'           },
+                { icon: Clock,       color: 'text-blue-500',   bg: 'bg-blue-50',   text: 'Office hours: 10:00 AM – 6:00 PM'           },
                 { icon: MapPin,      color: 'text-green-500',  bg: 'bg-green-50',  text: 'Must be within 200m of institute'           },
-                { icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', text: 'Check-in after 11:15 AM is marked Late'      },
+                { icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', text: 'Check-in after 10:30 AM is marked Late'      },
                 { icon: CheckCircle, color: 'text-purple-500', bg: 'bg-purple-50', text: 'Always check out before leaving office'     },
               ].map(({ icon: Icon, color, bg, text }, i) => (
                 <div key={i} className={`flex items-center gap-3 ${bg} px-4 py-3 rounded-xl`}>

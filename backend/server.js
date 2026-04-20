@@ -20,13 +20,13 @@ const leaveRoutes = require('./routes/leaveRoutes')
 const app = express()
 const PORT = process.env.PORT || 5000
 
-// MULTER DIRECTORY INITIALIZER
+// ── Multer directory initializer ─────────────────────────────────────────────
 const initializeUploadDirs = async () => {
   const dirs = [
     'uploads',
     'uploads/profiles',
     'uploads/staff-profiles',
-    'uploads/certificates'
+    'uploads/certificates',
   ]
   for (const dir of dirs) {
     try {
@@ -37,20 +37,20 @@ const initializeUploadDirs = async () => {
   }
 }
 
-// Connecting to DB
-connectDB.connect().then(async () => {
-  await initializeUploadDirs();
-  
-  // Middleware 
-  app.use(cors({
-    origin: [process.env.FRONTEND_URL || 'http://localhost:5173',process.env.WEBSITE_URL || 'http://localhost:3000', process.env.WEBSITE_URL_2],
-    credentials: true
-  }))
-  app.use(express.json({ limit: '10mb' }))
-  app.use(express.urlencoded({ extended: true }))
-  app.use(morgan('dev'))
+// ── Middleware ───────────────────────────────────────────────────────────────
+app.use(cors({
+  origin: [
+    process.env.FRONTEND_URL  || 'http://localhost:5173',
+    process.env.WEBSITE_URL   || 'http://localhost:3000',
+    process.env.WEBSITE_URL_2,
+  ].filter(Boolean),
+  credentials: true,
+}))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true }))
+app.use(morgan('dev'))
 
-// DB Connection Middleware — BEFORE all routes
+// ── DB connection guard (before all routes) ──────────────────────────────────
 app.use(async (req, res, next) => {
   try {
     await connectDB.connect()
@@ -59,85 +59,88 @@ app.use(async (req, res, next) => {
     return res.status(500).json({
       success: false,
       message: 'Database connection failed',
-      error: err.message
+      error: err.message,
     })
   }
 })
 
-// Health Check Routes
+// ── Health check routes ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({
-    message: 'FINVISION CRM API',
-    version: '1.0.0',
-    database: connectDB.isConnected() ? 'Connected ' : 'Disconnected ',
-    timestamp: new Date().toISOString()
+    message:   'FINVISION CRM API',
+    version:   '1.0.0',
+    database:  connectDB.isConnected() ? 'Connected ' : 'Disconnected ',
+    timestamp: new Date().toISOString(),
   })
 })
 
 app.get('/api', (req, res) => {
   res.json({
-    message: 'API is working!',
+    message:  'API is working!',
     database: connectDB.isConnected() ? 'Connected ' : 'Disconnected ',
     endpoints: [
       'POST /api/auth/register',
       'POST /api/auth/login',
-      'GET /api/dashboard/stats'
-    ]
+      'GET  /api/dashboard/stats',
+    ],
   })
 })
 
-// API Routes
-app.use('/api/auth', require('./routes/auth'))
-app.use('/api/leads', require('./routes/leads'))
-app.use('/api/students', require('./routes/students'))
-app.use('/api/fees', feesRoutes)
-app.use('/api/coupons', couponRoutes)
+// ── API routes ───────────────────────────────────────────────────────────────
+app.use('/api/auth',               require('./routes/auth'))
+app.use('/api/leads',              require('./routes/leads'))
+app.use('/api/students',           require('./routes/students'))
+app.use('/api/fees',               feesRoutes)
+app.use('/api/coupons',            couponRoutes)
 app.use('/api/student-attendance', studentAttendanceRoutes)
-app.use('/api/staff-attendance', staffAttendanceRoutes)
-app.use('/api/batches', batchRoutes)
-app.use('/api/admin', adminRoutes)
-app.use('/api/certificates', certificate)
+app.use('/api/staff-attendance',   staffAttendanceRoutes)
+app.use('/api/batches',            batchRoutes)
+app.use('/api/admin',              adminRoutes)
+app.use('/api/certificates',       certificate)
+app.use('/api/live-classes',       liveClassRoutes)
+app.use('/api/staff',              staffRoutes)
+app.use('/api/admin-settings',     adminSettingRoutes)
+app.use('/api/leave',              leaveRoutes)
+app.use('/api/webhooks',           require('./routes/webhooks'))
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-app.use('/api/live-classes', liveClassRoutes)
-app.use('/api/staff', staffRoutes)
-app.use('/api/admin-settings', adminSettingRoutes)
-app.use('/api/leave', leaveRoutes)
-app.use('/api/webhooks', require('./routes/webhooks'))
 
-// 404 Handler
+// ── 404 handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
-    path: req.originalUrl
+    path: req.originalUrl,
   })
 })
 
-// Global Error Handler
+// ── Global error handler ─────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack)
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error'
+    message: err.message || 'Internal Server Error',
   })
 })
 
-// Initial DB connect + upload dirs (non-blocking)
-connectDB.connect()
-  .then(async () => {
+// ── Start server ─────────────────────────────────────────────────────────────
+const startServer = async () => {
+  try {
+    await connectDB.connect()
     await initializeUploadDirs()
-    console.log('DB connected and upload dirs initialized ')
-  })
-  .catch(err => {
-    console.error('Initial DB connection failed:', err.message)
-  })
+    console.log('DB connected and upload dirs initialized')
 
-// Start server only when run locally
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`)
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
-  })
+    if (require.main === module) {
+      app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`)
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+      })
+    }
+  } catch (err) {
+    console.error('Failed to start server:', err.message)
+    process.exit(1)
+  }
 }
+
+startServer()
 
 module.exports = app
