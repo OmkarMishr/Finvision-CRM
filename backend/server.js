@@ -37,18 +37,24 @@ const initializeUploadDirs = async () => {
   }
 }
 
-// Connecting to DB
-connectDB.connect().then(async () => {
-  await initializeUploadDirs();
-  
-  // Middleware 
-  app.use(cors({
-    origin: [process.env.FRONTEND_URL || 'http://localhost:5173',process.env.WEBSITE_URL || 'http://localhost:3000', process.env.WEBSITE_URL_2],
-    credentials: true
-  }))
-  app.use(express.json({ limit: '10mb' }))
-  app.use(express.urlencoded({ extended: true }))
-  app.use(morgan('dev'))
+// Initialize DB and upload directories
+connectDB.connect()
+  .then(async () => {
+    await initializeUploadDirs()
+    console.log('DB connected and upload dirs initialized')
+  })
+  .catch(err => {
+    console.error('Initial DB connection failed:', err.message)
+  })
+
+// Middleware 
+app.use(cors({
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', process.env.WEBSITE_URL || 'http://localhost:3000', process.env.WEBSITE_URL_2],
+  credentials: true
+}))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true }))
+app.use(morgan('dev'))
 
 // DB Connection Middleware — BEFORE all routes
 app.use(async (req, res, next) => {
@@ -121,16 +127,6 @@ app.use((err, req, res, next) => {
     message: err.message || 'Internal Server Error'
   })
 })
-
-// Initial DB connect + upload dirs (non-blocking)
-connectDB.connect()
-  .then(async () => {
-    await initializeUploadDirs()
-    console.log('DB connected and upload dirs initialized ')
-  })
-  .catch(err => {
-    console.error('Initial DB connection failed:', err.message)
-  })
 
 // Start server only when run locally
 if (require.main === module) {
