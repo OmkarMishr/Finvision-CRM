@@ -120,10 +120,10 @@ const checkIn = async (req, res) => {
       });
     }
 
-    // Calculate if late (office starts at 11:00 AM)
+    // Calculate if late (office starts at 10:30 AM)
     const checkInTime = new Date();
     const expectedTime = new Date(dateOnly);
-    expectedTime.setHours(11, 0, 0, 0); // 11:00 AM
+    expectedTime.setHours(10, 30, 0, 0); // 10:30 AM
 
     const isLate = checkInTime > expectedTime;
     const lateByMinutes = isLate 
