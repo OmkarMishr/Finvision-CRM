@@ -49,7 +49,12 @@ connectDB.connect()
 
 // Middleware 
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', process.env.WEBSITE_URL || 'http://localhost:3000', process.env.WEBSITE_URL_2],
+  origin: [
+    'https://crm.myfinvision.com',
+    'https://www.crm.myfinvision.com',
+    process.env.FRONTEND_URL || 'http://localhost:5173', 
+    process.env.WEBSITE_URL || 'http://localhost:3000', 
+    process.env.WEBSITE_URL_2].filter(Boolean),
   credentials: true
 }))
 app.use(express.json({ limit: '10mb' }))
