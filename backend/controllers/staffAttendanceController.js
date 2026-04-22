@@ -120,10 +120,10 @@ const checkIn = async (req, res) => {
       });
     }
 
-    // Calculate if late (on-time check-in window ends at 10:30 AM)
+    // Calculate if late (office starts at 11:00 AM)
     const checkInTime = new Date();
     const expectedTime = new Date(dateOnly);
-    expectedTime.setHours(10, 30, 0, 0); // 10:30 AM
+    expectedTime.setHours(11, 0, 0, 0); // 11:00 AM
 
     const isLate = checkInTime > expectedTime;
     const lateByMinutes = isLate 
@@ -211,19 +211,8 @@ const checkOut = async (req, res) => {
       });
     }
 
-    const checkOutTime = new Date();
-    const earliestCheckOutTime = new Date(dateOnly);
-    earliestCheckOutTime.setHours(17, 30, 0, 0); // 5:30 PM
-
-    if (checkOutTime < earliestCheckOutTime) {
-      return res.status(400).json({
-        success: false,
-        message: 'Check-out is allowed only after 5:30 PM.'
-      });
-    }
-
     // Update check-out details
-    attendance.checkOutTime = checkOutTime;
+    attendance.checkOutTime = new Date();
     attendance.checkOutLocation = {
       latitude,
       longitude,
