@@ -63,7 +63,7 @@ const WorkingHoursBar = ({ checkIn, checkOut }) => {
   const diffMs = Math.max(end - new Date(checkIn), 0)
   const hours  = Math.floor(diffMs / 3600000)
   const mins   = Math.floor((diffMs % 3600000) / 60000)
-  const pct    = Math.min((hours / 9) * 100, 100)
+  const pct    = Math.min((hours / 8) * 100, 100)
 
   return (
     <div className="space-y-2">
@@ -84,8 +84,8 @@ const WorkingHoursBar = ({ checkIn, checkOut }) => {
       </div>
       <div className="flex justify-between text-xs text-gray-400">
         <span>0h</span>
-        <span>{Math.round(pct)}% of 9h target</span>
-        <span>9h</span>
+        <span>{Math.round(pct)}% of 8h target</span>
+        <span>8h</span>
       </div>
     </div>
   )
@@ -218,11 +218,11 @@ const MarkAttendance = () => {
               <TrendingUp className="w-4 h-4 text-[#C8294A]" />
               Attendance Guidelines
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">``
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
               {[
-                { icon: Clock,       color: 'text-blue-500',   bg: 'bg-blue-50',   text: 'Office hours: 10:00 AM – 6:00 PM'           },
+                { icon: Clock,color: 'text-blue-500', bg: 'bg-blue-50',   text: 'Office hours: 10:00 AM – 6:00 PM'      },
+                { icon: AlertCircle,color: 'text-orange-500', bg: 'bg-orange-50', text: 'Check-in after 10:30 AM is marked Late' },
                 { icon: MapPin,      color: 'text-green-500',  bg: 'bg-green-50',  text: 'Must be within 200m of institute'           },
-                { icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', text: 'Check-in after 10:30 AM is marked Late'      },
                 { icon: CheckCircle, color: 'text-purple-500', bg: 'bg-purple-50', text: 'Always check out before leaving office'     },
               ].map(({ icon: Icon, color, bg, text }, i) => (
                 <div key={i} className={`flex items-center gap-3 ${bg} px-4 py-3 rounded-xl`}>
