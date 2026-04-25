@@ -12,14 +12,14 @@ const LETTERHEAD_PATH = path.join(__dirname, '../templates/letterhead-template.p
 
 // Color palette
 const COLOR = {
-  primary:   rgb(200/255, 41/255,  74/255),   // #C8294A  red
-  black:     rgb(26/255,  26/255,  26/255),
-  darkGray:  rgb(51/255,  51/255,  51/255),
-  midGray:   rgb(102/255, 102/255, 102/255),
-  lightGray: rgb(180/255, 180/255, 180/255),
-  green:     rgb(5/255,   150/255, 105/255),
-  white:     rgb(1, 1, 1),
-  highlight: rgb(250/255, 236/255, 240/255),  // Light red background
+  primary: rgb(200 / 255, 41 / 255, 74 / 255),   // #C8294A  red
+  black: rgb(26 / 255, 26 / 255, 26 / 255),
+  darkGray: rgb(51 / 255, 51 / 255, 51 / 255),
+  midGray: rgb(102 / 255, 102 / 255, 102 / 255),
+  lightGray: rgb(180 / 255, 180 / 255, 180 / 255),
+  green: rgb(5 / 255, 150 / 255, 105 / 255),
+  white: rgb(1, 1, 1),
+  highlight: rgb(250 / 255, 236 / 255, 240 / 255),  // Light red background
 };
 
 // Generate receipt number from timestamp + random
@@ -45,7 +45,7 @@ const formatDate = (date) =>
 const drawLine = (page, x1, y, x2, color = COLOR.lightGray, thickness = 0.8) => {
   page.drawLine({
     start: { x: x1, y },
-    end:   { x: x2, y },
+    end: { x: x2, y },
     thickness,
     color,
   });
@@ -87,7 +87,7 @@ const buildReceiptPDF = async (payment) => {
 
   // Embed fonts
   const fonts = {
-    bold:    await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
     regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
   };
 
@@ -95,7 +95,7 @@ const buildReceiptPDF = async (payment) => {
   // how tall the header and footer are in your letterhead template
   const headerClear = 150;  // px from top to clear letterhead header
   const footerClear = 70;   // px from bottom to clear letterhead footer
-  const leftX  = 50;
+  const leftX = 50;
   const rightX = width - 50;
   const contentWidth = rightX - leftX;
 
@@ -117,7 +117,7 @@ const buildReceiptPDF = async (payment) => {
   // Thick red underline under title
   page.drawLine({
     start: { x: (width - 140) / 2, y },
-    end:   { x: (width + 140) / 2, y },
+    end: { x: (width + 140) / 2, y },
     thickness: 2.5,
     color: COLOR.primary,
   });
@@ -158,9 +158,9 @@ const buildReceiptPDF = async (payment) => {
   y -= 16;
 
   const studentRows = [
-    { label: 'Name',          value: payment.studentId.fullName           },
-    { label: 'Admission No',  value: payment.studentId.admissionNumber    },
-    { label: 'Mobile',        value: String(payment.studentId.mobile)     },
+    { label: 'Name', value: payment.studentId.fullName },
+    { label: 'Admission No', value: payment.studentId.admissionNumber },
+    { label: 'Mobile', value: String(payment.studentId.mobile) },
   ];
   if (payment.studentId.email) {
     studentRows.push({ label: 'Email', value: payment.studentId.email });
@@ -351,7 +351,7 @@ exports.getPendingFees = async (req, res) => {
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
 
-    const courseFee = student.courseId?.fee || 0;
+    const courseFee = student.totalFees || student.courseId?.fee || 0;
     const pendingAmount = Math.max(0, courseFee - (totalPaid[0]?.total || 0));
 
     const dueDate = new Date(student.admissionDate);
@@ -441,11 +441,11 @@ exports.validateCoupon = async (req, res) => {
       success: true,
       message: 'Coupon is valid',
       coupon: {
-        code:          coupon.code,
-        discountType:  coupon.discountType,
+        code: coupon.code,
+        discountType: coupon.discountType,
         discountValue: coupon.discountValue,
-        maxDiscount:   coupon.maxDiscount,
-        minAmount:     coupon.minAmount
+        maxDiscount: coupon.maxDiscount,
+        minAmount: coupon.minAmount
       }
     });
   } catch (error) {
@@ -492,19 +492,39 @@ exports.collectPayment = async (req, res) => {
 
     const payment = new FeesPayment({
       studentId,
-      courseId:       courseId || student.courseId,
-      feeHead:        feeHead || 'Course Fee',
-      baseAmount:     baseAmount || amount,
+      courseId: courseId || student.courseId,
+      feeHead: feeHead || 'Course Fee',
+      baseAmount: baseAmount || amount,
       amount,
-      couponCode:     couponCode || null,
+      couponCode: couponCode || null,
       couponDiscount,
       paymentMode,
-      status:         'SUCCESS',
+      status: 'SUCCESS',
       receiptNo,
-      paidDate:       new Date()
+      paidDate: new Date()
     });
 
     await payment.save();
+
+    // Sync Student document fee fields after every payment
+    const totalPaidAgg = await FeesPayment.aggregate([
+      {
+        $match: {
+          studentId: new mongoose.Types.ObjectId(studentId),
+          status: 'SUCCESS'
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    const totalPaidSoFar = totalPaidAgg[0]?.total || 0;
+
+    await Student.findByIdAndUpdate(studentId, {
+      paidFees: totalPaidSoFar,
+      pendingFees: Math.max(0, (student.totalFees || 0) - totalPaidSoFar),
+      lastPaymentDate: new Date()
+    });
+
 
     res.json({
       success: true,
@@ -528,7 +548,7 @@ exports.generateReceipt = async (req, res) => {
 
     const payment = await FeesPayment.findById(paymentId)
       .populate('studentId', 'fullName mobile admissionNumber email')
-      .populate('courseId',  'courseCategory');
+      .populate('courseId', 'courseCategory');
 
     if (!payment) {
       return res.status(404).json({ success: false, message: 'Payment not found' });
@@ -574,11 +594,11 @@ exports.getFeeStatistics = async (req, res) => {
         $group: {
           _id: {
             month: { $month: '$paidDate' },
-            year:  { $year:  '$paidDate' }
+            year: { $year: '$paidDate' }
           },
-          totalRevenue:  { $sum: '$amount' },
+          totalRevenue: { $sum: '$amount' },
           totalPayments: { $sum: 1 },
-          avgAmount:     { $avg: '$amount' }
+          avgAmount: { $avg: '$amount' }
         }
       },
       { $sort: { '_id.year': -1, '_id.month': -1 } },
@@ -598,8 +618,8 @@ exports.getFeeStatistics = async (req, res) => {
       { $match: match },
       {
         $group: {
-          _id:         '$paymentMode',
-          count:       { $sum: 1 },
+          _id: '$paymentMode',
+          count: { $sum: 1 },
           totalAmount: { $sum: '$amount' }
         }
       },
@@ -628,10 +648,10 @@ exports.getFeeStatistics = async (req, res) => {
     res.json({
       success: true,
       data: {
-        monthlyStats:         stats,
-        totalRevenue:         totalRevenueResult[0]?.total || 0,
+        monthlyStats: stats,
+        totalRevenue: totalRevenueResult[0]?.total || 0,
         totalPending,
-        conversionRatio:      Math.round(conversionRatio * 100) / 100,
+        conversionRatio: Math.round(conversionRatio * 100) / 100,
         totalPayments,
         totalStudents,
         paymentModeBreakdown: paymentModeStats
@@ -652,8 +672,8 @@ exports.getAllPayments = async (req, res) => {
     const { page = 1, limit = 50, status, paymentMode, dateFrom, dateTo } = req.query;
     const query = {};
 
-    if (status)                query.status      = status;
-    if (paymentMode)           query.paymentMode  = paymentMode;
+    if (status) query.status = status;
+    if (paymentMode) query.paymentMode = paymentMode;
     if (dateFrom && dateTo) {
       query.paidDate = {
         $gte: new Date(dateFrom),
@@ -663,7 +683,7 @@ exports.getAllPayments = async (req, res) => {
 
     const payments = await FeesPayment.find(query)
       .populate('studentId', 'fullName mobile admissionNumber')
-      .populate('courseId',  'courseCategory')
+      .populate('courseId', 'courseCategory')
       .sort({ paidDate: -1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -673,8 +693,8 @@ exports.getAllPayments = async (req, res) => {
     res.json({
       success: true,
       data: payments,
-      totalPages:   Math.ceil(count / limit),
-      currentPage:  page,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
       totalRecords: count
     });
   } catch (error) {
@@ -685,11 +705,11 @@ exports.getAllPayments = async (req, res) => {
 
 
 module.exports = {
-  getPendingFees:     exports.getPendingFees,
-  getPaymentHistory:  exports.getPaymentHistory,
-  validateCoupon:     exports.validateCoupon,
-  collectPayment:     exports.collectPayment,
-  generateReceipt:    exports.generateReceipt,
-  getFeeStatistics:   exports.getFeeStatistics,
-  getAllPayments:      exports.getAllPayments
+  getPendingFees: exports.getPendingFees,
+  getPaymentHistory: exports.getPaymentHistory,
+  validateCoupon: exports.validateCoupon,
+  collectPayment: exports.collectPayment,
+  generateReceipt: exports.generateReceipt,
+  getFeeStatistics: exports.getFeeStatistics,
+  getAllPayments: exports.getAllPayments
 };

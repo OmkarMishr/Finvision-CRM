@@ -9,7 +9,7 @@ const fs = require('fs');
 // ✅ Single consistent multer config — removed studentProfileUpload import conflict
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = 'uploads/profiles/';
+    const dir = path.join(__dirname, '..', 'uploads', 'profiles');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -68,25 +68,27 @@ const getMyProfile = async (req, res) => {
 // @access  Private (Student only)
 const updateMyProfile = async (req, res) => {
   try {
-    const { fullName, mobile, email, age, city, education, occupation, gender, dob } = req.body
+    const { fullName, mobile, email, age, city, education, occupation, gender, dob, fatherName } = req.body
 
-    // ✅ Use findByIdAndUpdate to skip full schema validation
-    const student = await Student.findByIdAndUpdate(
-      req.user.studentId || req.user._id,
+    const userId = getUserId(req) 
+
+    const student = await Student.findOneAndUpdate(
+      { userId },              
       {
         $set: {
-          ...(fullName   && { fullName }),
-          ...(mobile     && { mobile }),
-          ...(email      && { email }),
-          ...(age        && { age }),
-          ...(city       && { city }),
-          ...(education  && { education }),
-          ...(occupation && { occupation }),
-          ...(gender     && { gender }),
-          ...(dob        && { dob }),
+          ...(fullName    && { fullName }),
+          ...(mobile      && { mobile }),
+          ...(email       && { email }),
+          ...(age         && { age }),
+          ...(city        && { city }),
+          ...(education   && { education }),
+          ...(occupation  && { occupation }),
+          ...(gender      && { gender }),
+          ...(dob         && { dob }),
+          ...(fatherName  && { fatherName }), 
         }
       },
-      { new: true, runValidators: false }  // ← runValidators: false skips the courseId check
+      { new: true, runValidators: false }
     )
 
     if (!student) {
@@ -128,8 +130,9 @@ const uploadProfilePhoto = async (req, res) => {
       }
     }
 
-    student.profilePhoto = `/uploads/profiles/${req.file.filename}`;
-    await student.save();
+   const newPhotoUrl = `/uploads/profiles/${req.file.filename}`;
+await Student.findByIdAndUpdate(student._id, { profilePhoto: newPhotoUrl });
+res.json({ success: true, message: 'Profile photo uploaded successfully', photoUrl: newPhotoUrl });
 
     res.json({
       success: true,
@@ -166,8 +169,7 @@ const removeProfilePhoto = async (req, res) => {
       }
     }
 
-    student.profilePhoto = null;
-    await student.save();
+    await Student.findByIdAndUpdate(student._id, { profilePhoto: null });
 
     res.json({ success: true, message: 'Profile photo removed successfully' });
   } catch (error) {
@@ -208,12 +210,12 @@ const getStudentStats = async (req, res) => {
       { $match: matchQuery },
       {
         $facet: {
-          byStatus:           [{ $group: { _id: '$status',          count: { $sum: 1 } } }],
-          byBatchType:        [{ $group: { _id: '$batchType',        count: { $sum: 1 } } }],
-          byCourse:           [{ $group: { _id: '$courseCategory',   count: { $sum: 1 } } }],
-          totalPending:       [{ $group: { _id: null, total: { $sum: '$pendingFees' } } }],
-          totalCollected:     [{ $group: { _id: null, total: { $sum: '$paidFees' } } }],
-          averageAttendance:  [{ $group: { _id: null, avg: { $avg: '$attendancePercentage' } } }]
+          byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+          byBatchType: [{ $group: { _id: '$batchType', count: { $sum: 1 } } }],
+          byCourse: [{ $group: { _id: '$courseCategory', count: { $sum: 1 } } }],
+          totalPending: [{ $group: { _id: null, total: { $sum: '$pendingFees' } } }],
+          totalCollected: [{ $group: { _id: null, total: { $sum: '$paidFees' } } }],
+          averageAttendance: [{ $group: { _id: null, avg: { $avg: '$attendancePercentage' } } }]
         }
       }
     ]);
@@ -224,11 +226,11 @@ const getStudentStats = async (req, res) => {
       success: true,
       data: {
         totalStudents,
-        byStatus:          toObject(stats[0].byStatus),
-        byBatchType:       toObject(stats[0].byBatchType),
-        byCourse:          toObject(stats[0].byCourse),
-        totalPending:      stats[0].totalPending[0]?.total || 0,
-        totalCollected:    stats[0].totalCollected[0]?.total || 0,
+        byStatus: toObject(stats[0].byStatus),
+        byBatchType: toObject(stats[0].byBatchType),
+        byCourse: toObject(stats[0].byCourse),
+        totalPending: stats[0].totalPending[0]?.total || 0,
+        totalCollected: stats[0].totalCollected[0]?.total || 0,
         averageAttendance: stats[0].averageAttendance[0]?.avg || 0
       }
     });
@@ -279,42 +281,42 @@ const convertFromLead = async (req, res) => {
     if (lead.email) userAccount = await User.findOne({ email: lead.email });
 
     if (!userAccount && lead.email) {
-      const namePart   = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
+      const namePart = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
       const mobilePart = lead.mobile.slice(-4);
       const tempPassword = `${namePart}${mobilePart}`;
-      const nameParts  = lead.fullName.trim().split(' ');
+      const nameParts = lead.fullName.trim().split(' ');
 
       userAccount = await User.create({
         firstName: nameParts[0],
-        lastName:  nameParts.slice(1).join(' ') || nameParts[0],
-        email:     lead.email,
-        password:  tempPassword,
-        role:      'student',
-        phone:     lead.mobile,
-        isActive:  true
+        lastName: nameParts.slice(1).join(' ') || nameParts[0],
+        email: lead.email,
+        password: tempPassword,
+        role: 'student',
+        phone: lead.mobile,
+        isActive: true
       });
     }
 
     const student = await Student.create({
       admissionNumber,
-      fullName:         lead.fullName,
-      mobile:           lead.mobile,
-      email:            lead.email,
-      age:              lead.age,
-      education:        lead.education,
-      city:             lead.city,
-      occupation:       lead.occupation,
-      batchSection:     lead.batchSection,
-      batchType:        lead.batchType,
-      courseCategory:   lead.courseCategory,
+      fullName: lead.fullName,
+      mobile: lead.mobile,
+      email: lead.email,
+      age: lead.age,
+      education: lead.education,
+      city: lead.city,
+      occupation: lead.occupation,
+      batchSection: lead.batchSection,
+      batchType: lead.batchType,
+      courseCategory: lead.courseCategory,
       courseId,
-      leadSource:       lead.leadSource,
+      leadSource: lead.leadSource,
       convertedFromLead: lead._id,
-      conversionDate:   new Date(),
+      conversionDate: new Date(),
       assignedCounselor: lead.assignedCounselor,
-      branch:           lead.branch || 'Main',
-      createdBy:        getUserId(req),
-      userId:           userAccount?._id || null,
+      branch: lead.branch || 'Main',
+      createdBy: getUserId(req),
+      userId: userAccount?._id || null,
       ...req.body
     });
 
@@ -331,12 +333,12 @@ const convertFromLead = async (req, res) => {
     const response = { success: true, message: 'Lead converted to student successfully', student: populatedStudent };
 
     if (userAccount) {
-      const namePart   = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
+      const namePart = lead.fullName.replace(/\s+/g, '').substring(0, 4).toLowerCase();
       const mobilePart = lead.mobile.slice(-4);
       response.userAccount = {
-        email:       userAccount.email,
+        email: userAccount.email,
         tempPassword: `${namePart}${mobilePart}`,
-        message:     'User account created. Please share these credentials with the student.'
+        message: 'User account created. Please share these credentials with the student.'
       };
     }
 
@@ -359,16 +361,16 @@ const getAllStudents = async (req, res) => {
       query.assignedCounselor = getUserId(req);
     }
 
-    if (status)         query.status = status;
-    if (batchType)      query.batchType = batchType;
+    if (status) query.status = status;
+    if (batchType) query.batchType = batchType;
     if (courseCategory) query.courseCategory = courseCategory;
-    if (branch)         query.branch = branch;
+    if (branch) query.branch = branch;
 
     if (search) {
       query.$or = [
-        { fullName:        { $regex: search, $options: 'i' } },
-        { mobile:          { $regex: search, $options: 'i' } },
-        { email:           { $regex: search, $options: 'i' } },
+        { fullName: { $regex: search, $options: 'i' } },
+        { mobile: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
         { admissionNumber: { $regex: search, $options: 'i' } }
       ];
     }
@@ -431,10 +433,11 @@ const convertToPaid = async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
     if (student.batchType === 'Paid') return res.status(400).json({ success: false, message: 'Student is already in paid batch' });
 
-    student.batchType   = 'Paid';
-    student.totalFees   = totalFees || 0;
-    student.pendingFees = student.totalFees - student.paidFees;
-    await student.save();
+    await Student.findByIdAndUpdate(student._id, {
+      batchType: 'Paid',
+      totalFees,
+      pendingFees: totalFees - (student.paidFees || 0)
+    });
 
     res.json({ success: true, message: 'Student converted to paid batch successfully', student });
   } catch (error) {
@@ -452,8 +455,9 @@ const addNote = async (req, res) => {
     const student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    student.notes.push({ note, addedBy: getUserId(req), addedAt: new Date() });
-    await student.save();
+    await Student.findByIdAndUpdate(student._id, {
+      $push: { notes: { note, addedBy: getUserId(req), addedAt: new Date() } }
+    });
 
     const populated = await Student.findById(student._id).populate('notes.addedBy', 'firstName lastName');
     res.json({ success: true, message: 'Note added successfully', student: populated });
@@ -472,8 +476,7 @@ const updateStatus = async (req, res) => {
     const student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    student.status = status;
-    await student.save();
+   await Student.findByIdAndUpdate(student._id, { status });
     res.json({ success: true, message: 'Student status updated', student });
   } catch (error) {
     console.error('Update status error:', error);
