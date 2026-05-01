@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
     register:   `${API_URL}/api/auth/register`,
     login:      `${API_URL}/api/auth/login`,
     profile:    `${API_URL}/api/auth/profile`,
+    me:         `${API_URL}/api/auth/profile`,   // alias used by Settings panel
     dashboard:  `${API_URL}/api/auth/dashboard`,
     debugToken: `${API_URL}/api/auth/debug-token`
   },
@@ -149,12 +150,16 @@ export const API_ENDPOINTS = {
     password:      `${API_URL}/api/admin-settings/change-password`,
     appearance:    `${API_URL}/api/admin-settings/appearance`,
     account:       `${API_URL}/api/admin-settings/account`,
+    accountPhoto:  `${API_URL}/api/admin-settings/account/photo`,
     coupons: {
       base:   `${API_URL}/api/admin-settings/coupons`,
       toggle: (id) => `${API_URL}/api/admin-settings/coupons/${id}/toggle`,
       delete: (id) => `${API_URL}/api/admin-settings/coupons/${id}`,
     },
     data: {
+      overview: `${API_URL}/api/admin-settings/data/overview`,
+      backup:   `${API_URL}/api/admin-settings/data/backup`,
+      restore:  `${API_URL}/api/admin-settings/data/restore`,
       archived: `${API_URL}/api/admin-settings/data/archived`,
     },
   },

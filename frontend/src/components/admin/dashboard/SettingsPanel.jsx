@@ -201,17 +201,20 @@ const AccountSection = () => {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
   });
-  const [loading, setLoading] = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [error,   setError]   = useState('');
+  const [photoUrl,    setPhotoUrl]    = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [saved,       setSaved]       = useState(false);
+  const [error,       setError]       = useState('');
   const photoRef = useRef();
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
 
-  // Load current admin profile from token/me endpoint
+  // Load current admin profile from the dedicated admin-settings endpoint
+  // (falls back to /auth/profile if the new route is unavailable).
   useEffect(() => {
     const fetchMe = async () => {
       try {
-        const res = await axiosInstance.get(API_ENDPOINTS.auth.me);
+        const res = await axiosInstance.get(API_ENDPOINTS.adminSettings.account);
         const u   = res.data?.data || res.data?.user || res.data;
         setForm({
           firstName: u.firstName || '',
@@ -219,6 +222,7 @@ const AccountSection = () => {
           email:     u.email     || '',
           phone:     u.phone     || '',
         });
+        setPhotoUrl(u.profilePhoto || '');
       } catch (e) { console.error(e); }
     };
     fetchMe();
@@ -241,6 +245,25 @@ const AccountSection = () => {
     }
   };
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoLoading(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('photo', file);
+      const res = await axiosInstance.post(API_ENDPOINTS.adminSettings.accountPhoto, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setPhotoUrl(res.data.photoUrl || res.data.data?.profilePhoto || '');
+    } catch (e) {
+      setError(e.response?.data?.message || 'Photo upload failed');
+    } finally {
+      setPhotoLoading(false);
+      if (photoRef.current) photoRef.current.value = '';
+    }
+  };
+
   return (
     <SectionCard title="My Account"
       subtitle="Update your personal admin profile" icon={User}>
@@ -250,16 +273,23 @@ const AccountSection = () => {
       {/* Avatar */}
       <div className="flex items-center gap-5">
         <div className="relative w-16 h-16 shrink-0">
-          <div className="w-16 h-16 rounded-full bg-[#C8294A]/10 flex items-center justify-center">
-            <span className="text-[#C8294A] text-2xl font-bold">
-              {form.firstName?.charAt(0) || 'A'}
-            </span>
+          <div className="w-16 h-16 rounded-full bg-[#C8294A]/10 flex items-center justify-center overflow-hidden">
+            {photoUrl
+              ? <img src={`${import.meta.env.VITE_API_URL || ''}${photoUrl}`}
+                  alt="Avatar" className="w-full h-full object-cover" />
+              : <span className="text-[#C8294A] text-2xl font-bold">
+                  {form.firstName?.charAt(0) || 'A'}
+                </span>
+            }
           </div>
-          <button onClick={() => photoRef.current?.click()}
-            className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#C8294A] rounded-full flex items-center justify-center shadow">
-            <Camera className="w-3 h-3 text-white" />
+          <button onClick={() => photoRef.current?.click()} disabled={photoLoading}
+            className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#C8294A] rounded-full flex items-center justify-center shadow disabled:opacity-60">
+            {photoLoading
+              ? <RefreshCw className="w-3 h-3 text-white animate-spin" />
+              : <Camera     className="w-3 h-3 text-white" />
+            }
           </button>
-          <input ref={photoRef} type="file" accept="image/*" className="hidden" />
+          <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
         </div>
         <div>
           <p className="font-semibold text-[#1a1a1a]">{form.firstName} {form.lastName}</p>
@@ -980,29 +1010,67 @@ const AppearanceSection = ({ settings, onRefresh }) => {
 // ─── Data Management ───────────────────────────────────────────────────────────
 const DataSection = () => {
   const [backupLoading,  setBackupLoading]  = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreResult,  setRestoreResult]  = useState(null);
   const [clearLoading,   setClearLoading]   = useState(false);
   const [clearConfirm,   setClearConfirm]   = useState(false);
   const [clearResult,    setClearResult]    = useState(null);
+  const [overview,       setOverview]       = useState(null);
   const [error,          setError]          = useState('');
   const restoreRef = useRef();
+
+  const fetchOverview = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get(API_ENDPOINTS.adminSettings.data.overview);
+      setOverview(res.data?.data || null);
+    } catch (e) { /* non-blocking */ }
+  }, []);
+
+  useEffect(() => { fetchOverview(); }, [fetchOverview]);
 
   const handleBackup = async () => {
     setBackupLoading(true); setError('');
     try {
       const res = await axiosInstance.get(
-        API_ENDPOINTS.adminSettings.data.archived.replace('archived', 'backup') 
-        || API_ENDPOINTS.admin?.backup,
+        API_ENDPOINTS.adminSettings.data.backup,
         { responseType: 'blob' }
       );
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
       Object.assign(document.createElement('a'), {
-        href:     URL.createObjectURL(new Blob([res.data])),
+        href:     url,
         download: `Backup_${new Date().toISOString().split('T')[0]}.json`
       }).click();
+      URL.revokeObjectURL(url);
     } catch (e) {
-      setError('Backup failed. Check if backup endpoint is configured.');
+      setError(e.response?.data?.message || 'Backup failed.');
       console.error(e);
     } finally {
       setBackupLoading(false);
+    }
+  };
+
+  const handleRestore = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!window.confirm('Restoring will REPLACE existing students, leads, batches, attendance and payments. Users are preserved. Continue?')) {
+      if (restoreRef.current) restoreRef.current.value = '';
+      return;
+    }
+    setRestoreLoading(true); setError(''); setRestoreResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await axiosInstance.post(API_ENDPOINTS.adminSettings.data.restore, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setRestoreResult(res.data?.restored || null);
+      fetchOverview();
+      setTimeout(() => setRestoreResult(null), 6000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Restore failed.');
+    } finally {
+      setRestoreLoading(false);
+      if (restoreRef.current) restoreRef.current.value = '';
     }
   };
 
@@ -1013,6 +1081,7 @@ const DataSection = () => {
       const res = await axiosInstance.delete(API_ENDPOINTS.adminSettings.data.archived);
       setClearResult(res.data?.deleted);
       setClearConfirm(false);
+      fetchOverview();
       setTimeout(() => setClearResult(null), 4000);
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to clear archived data');
@@ -1026,6 +1095,31 @@ const DataSection = () => {
       subtitle="Backup, restore and manage your CRM data" icon={Database}>
 
       <ErrorBox msg={error} />
+
+      {/* Overview */}
+      {overview && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Students',         value: overview.active?.students  ?? 0 },
+            { label: 'Leads',            value: overview.active?.leads     ?? 0 },
+            { label: 'Archived Students',value: overview.archived?.students?? 0 },
+            { label: 'Archived Leads',   value: overview.archived?.leads   ?? 0 },
+          ].map(s => (
+            <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className="text-lg font-bold text-[#1a1a1a]">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {restoreResult && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-3 py-2 rounded-lg">
+          Restore complete — {restoreResult.students || 0} students, {restoreResult.leads || 0} leads,
+          {' '}{restoreResult.batches || 0} batches, {restoreResult.attendance || 0} attendance,
+          {' '}{restoreResult.payments || 0} payments restored.
+        </div>
+      )}
 
       {/* Backup */}
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
@@ -1058,11 +1152,14 @@ const DataSection = () => {
             <p className="text-xs text-gray-400">Upload a previously exported backup JSON file</p>
           </div>
         </div>
-        <button onClick={() => restoreRef.current?.click()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-          <Upload className="w-4 h-4" /> Restore
+        <button onClick={() => restoreRef.current?.click()} disabled={restoreLoading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2">
+          {restoreLoading
+            ? <><RefreshCw className="w-4 h-4 animate-spin" /> Restoring...</>
+            : <><Upload    className="w-4 h-4" /> Restore</>
+          }
         </button>
-        <input ref={restoreRef} type="file" accept=".json" className="hidden" />
+        <input ref={restoreRef} type="file" accept=".json,application/json" className="hidden" onChange={handleRestore} />
       </div>
 
       {/* Danger Zone */}

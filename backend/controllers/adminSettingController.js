@@ -4,6 +4,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// Auth middleware exposes req.user.userId / req.user.id (both as strings).
+// Controllers must NEVER read req.user._id — it is undefined.
+const reqUserId = (req) => req.user?.userId || req.user?.id;
+
 // ── Multer — logo upload ───────────────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -253,10 +257,14 @@ exports.updateAccount = async (req, res) => {
     const { firstName, lastName, phone } = req.body;
 
     const updated = await User.findByIdAndUpdate(
-      req.user._id,
+      reqUserId(req),
       { $set: { firstName, lastName, phone } },
       { new: true, select: '-password' }
     );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     res.json({ success: true, message: 'Account updated', data: updated });
   } catch (err) {
@@ -281,7 +289,7 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(reqUserId(req)).select('+password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
@@ -289,7 +297,8 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    user.password = await bcrypt.hash(newPassword, 12);
+    // pre-save hook hashes the password — assigning the plain value is correct.
+    user.password = newPassword;
     await user.save();
 
     res.json({ success: true, message: 'Password changed successfully' });
@@ -329,19 +338,21 @@ exports.createCoupon = async (req, res) => {
     }
 
     const coupon = await Coupon.create({
-      code, discountType, discountValue,
-      maxDiscount:       maxDiscount       || null,
-      minAmount:         minAmount         || 0,
-      maxUsage:          maxUsage          || 100,
+      code:              code.toUpperCase(),
+      discountType,
+      discountValue:     Number(discountValue),
+      maxDiscount:       maxDiscount       != null && maxDiscount !== '' ? Number(maxDiscount) : null,
+      minAmount:         minAmount         != null ? Number(minAmount)   : 0,
+      maxUsage:          maxUsage          != null && maxUsage   !== '' ? Number(maxUsage)   : 0,
       expiryDate:        expiryDate        || null,
-      applicableCourses: applicableCourses || [],
-      createdBy:         req.user._id,
+      applicableCourses: Array.isArray(applicableCourses) ? applicableCourses : [],
+      createdBy:         reqUserId(req),
     });
 
     res.status(201).json({ success: true, message: 'Coupon created', data: coupon });
   } catch (err) {
     console.error('createCoupon error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 };
 
@@ -373,6 +384,255 @@ exports.deleteCoupon = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET  /api/admin-settings/account  (current admin profile)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getAccount = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(reqUserId(req)).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, data: user });
+  } catch (err) {
+    console.error('getAccount error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST  /api/admin-settings/account/photo  (admin avatar upload)
+// ─────────────────────────────────────────────────────────────────────────────
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/admin-profiles';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `admin_${reqUserId(req) || 'user'}_${Date.now()}${path.extname(file.originalname)}`);
+  },
+});
+
+const uploadPhoto = multer({
+  storage: photoStorage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|webp/;
+    const ext  = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext && mime) return cb(null, true);
+    cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
+  },
+});
+
+exports.uploadAccountPhoto = [
+  uploadPhoto.single('photo'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+
+      const User = require('../models/User');
+      const user = await User.findById(reqUserId(req));
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      // Remove previous photo file if it lives under our uploads tree.
+      if (user.profilePhoto && user.profilePhoto.startsWith('/uploads/')) {
+        const oldPath = path.join(__dirname, '..', user.profilePhoto);
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (_) { /* ignore */ }
+        }
+      }
+
+      const photoUrl = `/uploads/admin-profiles/${req.file.filename}`;
+      user.profilePhoto = photoUrl;
+      await user.save();
+
+      res.json({ success: true, message: 'Photo uploaded', photoUrl, data: { profilePhoto: photoUrl } });
+    } catch (err) {
+      console.error('uploadAccountPhoto error:', err);
+      if (err.message?.includes('Only JPEG')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      res.status(500).json({ success: false, message: 'Upload failed' });
+    }
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET  /api/admin-settings/data/overview
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getDataOverview = async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const Lead    = require('../models/Lead');
+    const User    = require('../models/User');
+    const Batch   = require('../models/Batch');
+
+    const [students, leads, archivedStudents, archivedLeads, users, batches] = await Promise.all([
+      Student.countDocuments({ isDeleted: { $ne: true } }),
+      Lead.countDocuments({    isDeleted: { $ne: true } }),
+      Student.countDocuments({ isDeleted: true }),
+      Lead.countDocuments({    isDeleted: true }),
+      User.countDocuments(),
+      Batch.countDocuments(),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        active:   { students, leads, users, batches },
+        archived: { students: archivedStudents, leads: archivedLeads },
+      },
+    });
+  } catch (err) {
+    console.error('getDataOverview error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET  /api/admin-settings/data/backup
+// Streams a JSON backup of all CRM collections (excluding password hashes).
+// ─────────────────────────────────────────────────────────────────────────────
+exports.createBackup = async (req, res) => {
+  try {
+    const Student           = require('../models/Student');
+    const Lead              = require('../models/Lead');
+    const User              = require('../models/User');
+    const Batch             = require('../models/Batch');
+    const StudentAttendance = require('../models/StudentAttendance');
+    const FeesPayment       = require('../models/FeesPayment');
+
+    const [students, leads, users, batches, attendance, payments, settings] = await Promise.all([
+      Student.find().lean(),
+      Lead.find().lean(),
+      User.find().select('-password').lean(),
+      Batch.find().lean(),
+      StudentAttendance.find().lean(),
+      FeesPayment.find().lean(),
+      AdminSetting.findOne({ type: 'global' }).lean(),
+    ]);
+
+    const backup = {
+      version:   '1.0.0',
+      timestamp: new Date().toISOString(),
+      createdBy: reqUserId(req),
+      data: { students, leads, users, batches, attendance, payments, settings },
+      metadata: {
+        totalStudents:   students.length,
+        totalLeads:      leads.length,
+        totalUsers:      users.length,
+        totalBatches:    batches.length,
+        totalAttendance: attendance.length,
+        totalPayments:   payments.length,
+      },
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=finvision_backup_${Date.now()}.json`
+    );
+    res.json(backup);
+  } catch (err) {
+    console.error('createBackup error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create backup', error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST  /api/admin-settings/data/restore
+// Accepts a backup JSON (multipart upload as `file`, or raw JSON body).
+// Replaces students/leads/batches/attendance/payments. Users are NOT touched
+// (avoids admin lockout) and AdminSetting is upserted.
+// ─────────────────────────────────────────────────────────────────────────────
+const backupUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 50 * 1024 * 1024 }, // 50 MB
+});
+
+exports.restoreBackup = [
+  backupUpload.single('file'),
+  async (req, res) => {
+    try {
+      let backup = req.body;
+
+      // If multipart upload, parse the file buffer
+      if (req.file) {
+        try {
+          backup = JSON.parse(req.file.buffer.toString('utf8'));
+        } catch (parseErr) {
+          return res.status(400).json({ success: false, message: 'Invalid backup file: not valid JSON' });
+        }
+      }
+
+      if (!backup || !backup.data || !backup.version) {
+        return res.status(400).json({ success: false, message: 'Invalid backup file format' });
+      }
+      if (backup.version !== '1.0.0') {
+        return res.status(400).json({
+          success: false,
+          message: `Unsupported backup version: ${backup.version}`,
+        });
+      }
+
+      const Student           = require('../models/Student');
+      const Lead              = require('../models/Lead');
+      const Batch             = require('../models/Batch');
+      const StudentAttendance = require('../models/StudentAttendance');
+      const FeesPayment       = require('../models/FeesPayment');
+
+      const { students = [], leads = [], batches = [], attendance = [], payments = [], settings } = backup.data;
+
+      // Wipe collections we're about to restore (Users intentionally preserved
+      // to avoid locking the admin out of the system).
+      await Promise.all([
+        Student.deleteMany({}),
+        Lead.deleteMany({}),
+        Batch.deleteMany({}),
+        StudentAttendance.deleteMany({}),
+        FeesPayment.deleteMany({}),
+      ]);
+
+      const results = await Promise.all([
+        students.length   ? Student.insertMany(students,     { ordered: false }) : [],
+        leads.length      ? Lead.insertMany(leads,           { ordered: false }) : [],
+        batches.length    ? Batch.insertMany(batches,        { ordered: false }) : [],
+        attendance.length ? StudentAttendance.insertMany(attendance, { ordered: false }) : [],
+        payments.length   ? FeesPayment.insertMany(payments, { ordered: false }) : [],
+      ]);
+
+      // Restore the singleton settings doc as an upsert (or leave alone if absent).
+      if (settings) {
+        const { _id, __v, createdAt, updatedAt, ...settingsData } = settings;
+        await AdminSetting.findOneAndUpdate(
+          { type: 'global' },
+          { $set: settingsData },
+          { upsert: true, new: true }
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Database restored successfully',
+        restored: {
+          students:   results[0].length,
+          leads:      results[1].length,
+          batches:    results[2].length,
+          attendance: results[3].length,
+          payments:   results[4].length,
+        },
+        restoredFrom: backup.timestamp,
+      });
+    } catch (err) {
+      console.error('restoreBackup error:', err);
+      res.status(500).json({ success: false, message: 'Failed to restore backup', error: err.message });
+    }
+  },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE  /api/admin-settings/data/archived  (danger zone)

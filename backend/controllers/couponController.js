@@ -7,8 +7,11 @@ exports.createCoupon = async (req, res) => {
       code,
       discountType,
       discountValue,
+      // Accept both new and legacy names from older clients.
+      maxUsage,
       maxUses,
       validFrom,
+      expiryDate,
       validUntil,
       applicableCourses,
       minAmount,
@@ -28,14 +31,14 @@ exports.createCoupon = async (req, res) => {
       code: code.toUpperCase(),
       discountType,
       discountValue,
-      maxUses: maxUses || 0,
+      maxUsage: (maxUsage ?? maxUses ?? 0),
       validFrom: validFrom || Date.now(),
-      validUntil,
+      expiryDate: expiryDate ?? validUntil ?? null,
       applicableCourses: applicableCourses || [],
       minAmount: minAmount || 0,
       maxDiscount: maxDiscount || null,
       isActive: true,
-      createdBy: req.user.userId
+      createdBy: req.user?.userId || req.user?.id
     });
 
     await coupon.save();

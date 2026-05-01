@@ -26,7 +26,9 @@ const initializeUploadDirs = async () => {
     'uploads',
     'uploads/profiles',
     'uploads/staff-profiles',
-    'uploads/certificates'
+    'uploads/certificates',
+    'uploads/logos',
+    'uploads/admin-profiles'
   ]
   for (const dir of dirs) {
     try {

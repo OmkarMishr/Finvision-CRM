@@ -18,9 +18,12 @@ const couponSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  maxUses: {
+  // Renamed from `maxUses` → `maxUsage` to match the frontend admin settings
+  // payload. 0 means unlimited.
+  maxUsage: {
     type: Number,
-    default: 0 // 0 = unlimited
+    default: 0,
+    alias: 'maxUses'
   },
   usedCount: {
     type: Number,
@@ -30,9 +33,12 @@ const couponSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  validUntil: {
+  // Renamed from `validUntil` → `expiryDate` to match the frontend payload.
+  // null = never expires.
+  expiryDate: {
     type: Date,
-    required: true
+    default: null,
+    alias: 'validUntil'
   },
   applicableCourses: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -52,24 +58,23 @@ const couponSchema = new mongoose.Schema({
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Validate coupon state
-couponSchema.methods.isValid = function(currentDate = new Date()) {
-  return (
-    this.isActive &&
-    currentDate >= this.validFrom &&
-    currentDate <= this.validUntil &&
-    (this.maxUses === 0 || this.usedCount < this.maxUses)
-  );
+couponSchema.methods.isValid = function (currentDate = new Date()) {
+  if (!this.isActive) return false;
+  if (this.validFrom && currentDate < this.validFrom) return false;
+  if (this.expiryDate && currentDate > this.expiryDate) return false;
+  if (this.maxUsage > 0 && this.usedCount >= this.maxUsage) return false;
+  return true;
 };
 
-couponSchema.index({ validFrom: 1, validUntil: 1 });
+couponSchema.index({ validFrom: 1, expiryDate: 1 });
 couponSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Coupon', couponSchema);

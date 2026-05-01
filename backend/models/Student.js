@@ -171,6 +171,18 @@ const studentSchema = new mongoose.Schema(
     profilePhoto: {
       type: String,
       default: null
+    },
+
+    // Soft-delete — set by archival flows; hard-deleted by the admin
+    // Settings → Data → "Clear Archived Data" action.
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   }, { timestamps: true });
 

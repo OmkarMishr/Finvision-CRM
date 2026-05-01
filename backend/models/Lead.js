@@ -149,6 +149,18 @@ const leadSchema = new mongoose.Schema(
       sparse: true,
       unique: true,
     },
+
+    // Soft-delete — set by archival flows; hard-deleted by the admin
+    // Settings → Data → "Clear Archived Data" action.
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null
+    },
   },
   {
     timestamps: true
