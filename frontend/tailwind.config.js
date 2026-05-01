@@ -1,5 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // Toggled by useAppearance hook — adds/removes `dark` class on <html>.
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{html,js,jsx,ts,tsx}",

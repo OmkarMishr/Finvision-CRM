@@ -105,6 +105,44 @@ exports.authorize = (...roles) => {
   }
 }
 
+// Module-level permission check that consults the AdminSetting permissions
+// table written by Settings → Permissions. Admins always pass. Other roles
+// pass only if their role's permission map contains `action` for `module`.
+//
+// Usage: router.get('/', protect, checkPermission('Leads', 'View'), handler)
+exports.checkPermission = (module, action) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Not authenticated' })
+      }
+      if (req.user.role === 'admin') return next()
+
+      const AdminSetting = require('../models/AdminSetting')
+      const settings = await AdminSetting.findOne({ type: 'global' }).lean()
+      const perms    = settings?.permissions || {}
+
+      // Map role → permissions key. staff users use their staffRole when
+      // present (telecaller/counselor) so admins can scope each sub-role.
+      const roleKey = req.user.role === 'staff'
+        ? (req.user.staffRole?.toLowerCase() || 'staff')
+        : req.user.role
+
+      const allowed = perms[roleKey]?.[module] || perms.staff?.[module] || []
+      if (!allowed.includes(action)) {
+        return res.status(403).json({
+          success: false,
+          message: `Permission denied: ${roleKey} cannot ${action} ${module}`,
+        })
+      }
+      next()
+    } catch (err) {
+      console.error('checkPermission error:', err)
+      return res.status(500).json({ success: false, message: 'Permission check failed' })
+    }
+  }
+}
+
 // Staff role authorization (for telecaller/counselor specific routes)
 exports.authorizeStaffRole = (...staffRoles) => {
   return (req, res, next) => {

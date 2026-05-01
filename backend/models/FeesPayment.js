@@ -10,10 +10,13 @@ const feesPaymentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course'
   },
+  // Free-form so admins can add custom heads in Settings → Fees Config without
+  // an enum migration. Validation happens at the controller against the
+  // current AdminSetting.fees.feeHeads list.
   feeHead: {
     type: String,
-    enum: ['Course Fee', 'Exam Fee', 'Certification Fee', 'Other'],
-    required: true
+    required: true,
+    trim: true
   },
   baseAmount: {
     type: Number,

@@ -1,10 +1,11 @@
-const FeesPayment = require('../models/FeesPayment');
-const Coupon = require('../models/Coupon');
-const Student = require('../models/Student');
-const Course = require('../models/Course');
+const FeesPayment  = require('../models/FeesPayment');
+const Coupon       = require('../models/Coupon');
+const Student      = require('../models/Student');
+const Course       = require('../models/Course');
+const AdminSetting = require('../models/AdminSetting');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const mongoose = require('mongoose');
-const fs = require('fs').promises;
+const fs   = require('fs').promises;
 const path = require('path');
 
 // Path to your letterhead template
@@ -77,7 +78,7 @@ const drawRow = (page, fonts, leftX, rightX, y, label, value, opts = {}) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Core: fill letterhead template with receipt data
 // ─────────────────────────────────────────────────────────────────────────────
-const buildReceiptPDF = async (payment) => {
+const buildReceiptPDF = async (payment, settingsOverrides = {}) => {
   // Load letterhead
   const templateBytes = await fs.readFile(LETTERHEAD_PATH);
   const pdfDoc = await PDFDocument.load(templateBytes);
@@ -299,8 +300,8 @@ const buildReceiptPDF = async (payment) => {
   drawLine(page, leftX, y, rightX);
   y -= 20;
 
-  // ── Thank you message ─────────────────────────────────────────────────────
-  const thanksText = 'Thank you for your payment!';
+  // ── Thank you message (admin-configurable in Settings → Fees Config) ─────
+  const thanksText = settingsOverrides.footerText || 'Thank you for your payment!';
   const thanksWidth = fonts.bold.widthOfTextAtSize(thanksText, 11);
   page.drawText(thanksText, {
     x: (width - thanksWidth) / 2,
@@ -471,6 +472,20 @@ exports.collectPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
+    // Validate the fee head against the admin-configured list (with a permissive
+    // fallback if Settings hasn't been initialized yet).
+    const adminSettings = await AdminSetting.findOne({ type: 'global' }).lean();
+    const allowedHeads  = adminSettings?.fees?.feeHeads?.length
+      ? adminSettings.fees.feeHeads
+      : ['Course Fee', 'Exam Fee', 'Certification Fee', 'Other'];
+    const resolvedHead = feeHead || 'Course Fee';
+    if (!allowedHeads.includes(resolvedHead)) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown fee head "${resolvedHead}". Configure it in Settings → Fees Config first.`,
+      });
+    }
+
     let couponDiscount = 0;
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
@@ -490,18 +505,28 @@ exports.collectPayment = async (req, res) => {
 
     const receiptNo = await generateReceiptNo();
 
+    // Apply GST on top of the (post-coupon) amount when enabled in settings.
+    let finalAmount = Number(amount) || 0;
+    const gstCfg    = adminSettings?.fees?.gst;
+    let gstApplied  = 0;
+    if (gstCfg?.enabled && gstCfg.percentage > 0) {
+      gstApplied  = Math.round((finalAmount * gstCfg.percentage) / 100);
+      finalAmount = finalAmount + gstApplied;
+    }
+
     const payment = new FeesPayment({
       studentId,
       courseId: courseId || student.courseId,
-      feeHead: feeHead || 'Course Fee',
+      feeHead: resolvedHead,
       baseAmount: baseAmount || amount,
-      amount,
+      amount: finalAmount,
       couponCode: couponCode || null,
       couponDiscount,
       paymentMode,
       status: 'SUCCESS',
       receiptNo,
-      paidDate: new Date()
+      paidDate: new Date(),
+      remarks: gstApplied > 0 ? `GST @ ${gstCfg.percentage}% = ${gstApplied}` : ''
     });
 
     await payment.save();
@@ -554,7 +579,10 @@ exports.generateReceipt = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Payment not found' });
     }
 
-    const pdfBytes = await buildReceiptPDF(payment);
+    const settings = await AdminSetting.findOne({ type: 'global' }).lean();
+    const pdfBytes = await buildReceiptPDF(payment, {
+      footerText: settings?.fees?.receipt?.footerText,
+    });
 
     const filename = `Receipt_${payment.receiptNo}_${payment.studentId.admissionNumber}.pdf`;
 

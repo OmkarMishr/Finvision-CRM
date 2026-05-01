@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
+import { refreshAppearance } from '../../../hooks/useAppearance';
 
 // ─── Nav Items ─────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -422,30 +423,31 @@ const SecuritySection = ({ settings, onRefresh }) => {
         </div>
       </SectionCard>
 
-      <SectionCard title="Active Sessions"
-        subtitle="Devices currently logged into your account" icon={Monitor}>
-        {[
-          { device: 'Chrome — Windows 11', location: 'Mumbai, IN',  time: 'Now (current)', current: true  },
-          { device: 'Safari — iPhone 14',  location: 'Raipur, IN',  time: '2 hours ago',   current: false },
-        ].map((s, i) => (
-          <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                <Monitor className="w-4 h-4 text-gray-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#1a1a1a]">{s.device}</p>
-                <p className="text-xs text-gray-400">{s.location} · {s.time}</p>
-              </div>
+      <SectionCard title="Current Session"
+        subtitle="The device you are signed in from right now" icon={Monitor}>
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
+              <Monitor className="w-4 h-4 text-gray-400" />
             </div>
-            {s.current
-              ? <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium">Current</span>
-              : <button className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1">
-                  <LogOut className="w-3 h-3" /> Revoke
-                </button>
-            }
+            <div>
+              <p className="text-sm font-semibold text-[#1a1a1a]">
+                {typeof navigator !== 'undefined' ? navigator.userAgent.split(')')[0].split('(')[1] || 'This device' : 'This device'}
+              </p>
+              <p className="text-xs text-gray-400">
+                Signed in · {new Date().toLocaleString('en-IN')}
+              </p>
+            </div>
           </div>
-        ))}
+          <button onClick={() => {
+              localStorage.removeItem('fv_token');
+              localStorage.removeItem('fv_user');
+              window.location.href = '/login';
+            }}
+            className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1">
+            <LogOut className="w-3 h-3" /> Sign out
+          </button>
+        </div>
       </SectionCard>
     </div>
   );
@@ -950,6 +952,8 @@ const AppearanceSection = ({ settings, onRefresh }) => {
       await axiosInstance.put(API_ENDPOINTS.adminSettings.appearance, {
         theme, dateFormat: dateFmt, sidebarCollapsed: sidebar,
       });
+      // Apply immediately so the user sees the change without a page reload.
+      refreshAppearance({ theme, dateFormat: dateFmt, sidebarCollapsed: sidebar });
       setSaved(true);
       onRefresh();
       setTimeout(() => setSaved(false), 2500);

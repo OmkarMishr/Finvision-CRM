@@ -43,11 +43,26 @@ const getSettings = async () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET  /api/admin-settings
+// Returns a plain-JS view of the singleton settings doc — Mongoose subdocument
+// `_id`s are stripped so they don't round-trip back on save (which would let
+// stale ids reach the wire and confuse client-side diffs).
 // ─────────────────────────────────────────────────────────────────────────────
+const stripSubdocIds = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripSubdocIds);
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === '_id' || k === '__v') continue;
+    out[k] = stripSubdocIds(v);
+  }
+  return out;
+};
+
 exports.getSettings = async (req, res) => {
   try {
     const settings = await getSettings();
-    res.json({ success: true, data: settings });
+    const data     = stripSubdocIds(settings.toObject({ virtuals: false }));
+    res.json({ success: true, data });
   } catch (err) {
     console.error('getSettings error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -122,8 +137,11 @@ exports.updateFees = async (req, res) => {
     const { feeHeads, gst, receipt } = req.body;
     const settings = await getSettings();
 
-    if (Array.isArray(feeHeads) && feeHeads.length > 0) {
-      settings.fees.feeHeads = feeHeads;
+    if (Array.isArray(feeHeads)) {
+      // Always keep a "Course Fee" head — collection forms expect it.
+      const cleaned = [...new Set(feeHeads.map(h => String(h).trim()).filter(Boolean))];
+      if (!cleaned.includes('Course Fee')) cleaned.unshift('Course Fee');
+      settings.fees.feeHeads = cleaned;
     }
     if (gst) {
       if (typeof gst.enabled    === 'boolean') settings.fees.gst.enabled    = gst.enabled;
