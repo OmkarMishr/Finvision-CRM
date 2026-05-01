@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, XCircle, TrendingUp, Users, Download, RefreshCw } from 'lucide-react';
+import ExportButton from '../../common/ExportButton';
 
 const DEFAULT_STATS = {
   leads:      { total: 0, enquiry: 0, counselling: 0, freeBatch: 0, paidBatch: 0, converted: 0, conversionRate: 0 },
@@ -16,42 +17,31 @@ const ReportsPanel = ({
   onRefresh                 
 }) => {
 
-  const exportCSV = () => {
-    const rows = [
-      ['Metric', 'Value'],
-      ['Report Date', new Date().toLocaleString()],
-      ['Time Range', timeRange.toUpperCase()],
-      [''], ['LEADS'],
-      ['Total Leads',     stats.leads.total],
-      ['Enquiry',         stats.leads.enquiry],
-      ['Counselling',     stats.leads.counselling],
-      ['Free Batch',      stats.leads.freeBatch],
-      ['Paid Batch',      stats.leads.paidBatch],
-      ['Converted',       stats.leads.converted],
-      ['Conversion Rate', `${stats.leads.conversionRate}%`],
-      [''], ['STUDENTS'],
-      ['Total',           stats.students.total],
-      ['Active',          stats.students.active],
-      ['Inactive',        stats.students.inactive],
-      [''], ['REVENUE'],
-      ['Collected',       `₹${stats.revenue.collected.toLocaleString()}`],
-      ['Pending',         `₹${stats.revenue.pending.toLocaleString()}`],
-      [''], ['ATTENDANCE'],
-      ['Present',         stats.attendance.present],
-      ['Absent',          stats.attendance.absent],
-      ['Percentage',      `${stats.attendance.percentage}%`],
-      [''], ['BATCHES'],
-      ['Total',           stats.batches.total],
-      ['Active',          stats.batches.active],
-    ];
-    const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a    = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `MIS_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`
-    });
-    a.click();
-  };
+  const buildExportRows = () => ({
+    headers: ['Section', 'Metric', 'Value'],
+    rows: [
+      ['Meta',       'Report Date',      new Date().toLocaleString('en-IN')],
+      ['Meta',       'Time Range',       String(timeRange).toUpperCase()],
+      ['Leads',      'Total',            stats.leads.total],
+      ['Leads',      'Enquiry',          stats.leads.enquiry],
+      ['Leads',      'Counselling',      stats.leads.counselling],
+      ['Leads',      'Free Batch',       stats.leads.freeBatch],
+      ['Leads',      'Paid Batch',       stats.leads.paidBatch],
+      ['Leads',      'Converted',        stats.leads.converted],
+      ['Leads',      'Conversion Rate',  `${stats.leads.conversionRate}%`],
+      ['Students',   'Total',            stats.students.total],
+      ['Students',   'Active',           stats.students.active],
+      ['Students',   'Inactive',         stats.students.inactive],
+      ['Revenue',    'Total',            `₹${stats.revenue.total.toLocaleString('en-IN')}`],
+      ['Revenue',    'Collected',        `₹${stats.revenue.collected.toLocaleString('en-IN')}`],
+      ['Revenue',    'Pending',          `₹${stats.revenue.pending.toLocaleString('en-IN')}`],
+      ['Attendance', 'Present',          stats.attendance.present],
+      ['Attendance', 'Absent',           stats.attendance.absent],
+      ['Attendance', 'Percentage',       `${stats.attendance.percentage}%`],
+      ['Batches',    'Total',            stats.batches.total],
+      ['Batches',    'Active',           stats.batches.active],
+    ],
+  });
 
   const reportData = [
     {
@@ -131,10 +121,11 @@ const ReportsPanel = ({
               <RefreshCw className="w-4 h-4" /> Refresh
             </button>
           )}
-          <button onClick={exportCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
+          <ExportButton
+            filename={`MIS_${timeRange}`}
+            title={`MIS Report — ${String(timeRange).toUpperCase()}`}
+            getRows={buildExportRows}
+          />
         </div>
       </div>
 

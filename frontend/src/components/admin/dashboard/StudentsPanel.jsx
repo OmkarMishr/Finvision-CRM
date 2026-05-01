@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
+import ExportButton from '../../common/ExportButton';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, color, bg }) => (
@@ -172,21 +173,14 @@ const StudentsPanel = () => {
     }
   };
 
-  const exportCSV = () => {
-    const headers = ['Name', 'Mobile', 'Email', 'Batch Type', 'Status', 'Total Fees', 'Paid', 'Pending', 'Joined'];
-    const rows = filtered.map(s => [
+  const buildExportRows = () => ({
+    headers: ['Name', 'Mobile', 'Email', 'Batch Type', 'Status', 'Total Fees', 'Paid', 'Pending', 'Joined'],
+    rows: filtered.map(s => [
       s.fullName, s.mobile, s.email, s.batchType, s.status,
       s.totalFees || 0, s.paidFees || 0, s.pendingFees || 0,
       s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : ''
-    ]);
-    const csv  = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a    = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `Students_${new Date().toISOString().split('T')[0]}.csv`
-    });
-    a.click();
-  };
+    ]),
+  });
 
   // ─── Filter + Search + Paginate ──────────────────────────────────────────
   const filtered = students.filter(s => {
@@ -229,10 +223,11 @@ const StudentsPanel = () => {
             className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
-          <button onClick={exportCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
+          <ExportButton
+            filename="Students"
+            title="Student Management"
+            getRows={buildExportRows}
+          />
         </div>
       </div>
 

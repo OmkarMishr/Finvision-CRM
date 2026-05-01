@@ -3,6 +3,7 @@ import { Search, Filter, Download, Eye, Edit2, Trash2, Users, UserCheck, UserX, 
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
 import StudentDetailsModal from './StudentDetailsModal'
+import ExportButton from '../common/ExportButton'
 
 const StudentList = () => {
     const [students, setStudents] = useState([])
@@ -108,29 +109,20 @@ const StudentList = () => {
         setShowDetailsModal(false)
     }
 
-    const exportToExcel = () => {
-        const csv = [
-            ['Admission No', 'Name', 'Mobile', 'Email', 'Course', 'Batch Type', 'Status', 'Fees Pending', 'Attendance %'],
-            ...filteredStudents.map(student => [
-                student.admissionNumber,
-                student.fullName,
-                student.mobile,
-                student.email || '',
-                student.courseCategory,
-                student.batchType,
-                student.status,
-                student.pendingFees,
-                student.attendancePercentage
-            ])
-        ].map(row => row.join(',')).join('\n')
-
-        const blob = new Blob([csv], { type: 'text/csv' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `students_${new Date().toISOString().split('T')[0]}.csv`
-        a.click()
-    }
+    const buildExportRows = () => ({
+        headers: ['Admission No', 'Name', 'Mobile', 'Email', 'Course', 'Batch Type', 'Status', 'Fees Pending', 'Attendance %'],
+        rows: filteredStudents.map(student => [
+            student.admissionNumber,
+            student.fullName,
+            student.mobile,
+            student.email || '',
+            student.courseCategory,
+            student.batchType,
+            student.status,
+            student.pendingFees,
+            student.attendancePercentage,
+        ]),
+    })
 
     const getStatusColor = (status) => {
         const colors = {
@@ -218,13 +210,11 @@ const StudentList = () => {
                         />
                     </div>
 
-                    <button
-                        onClick={exportToExcel}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
-                    >
-                        <Download className="w-5 h-5" />
-                        Export CSV
-                    </button>
+                    <ExportButton
+                        filename="Students"
+                        title="Student List"
+                        getRows={buildExportRows}
+                    />
                 </div>
 
                 <div className="flex flex-wrap gap-3 mb-6">

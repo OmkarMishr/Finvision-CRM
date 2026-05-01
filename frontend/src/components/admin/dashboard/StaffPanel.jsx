@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
+import ExportButton from '../../common/ExportButton';
 
 // ─── Leave Type Config ────────────────────────────────────────────────────────
 const LEAVE_TYPE_CONFIG = {
@@ -977,21 +978,15 @@ const StaffPanel = () => {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated  = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
-  const exportCSV = () => {
-    const headers = ['First Name','Last Name','Email','Phone','Staff Role','Department','Subject','Status','Joined'];
-    const rows = filtered.map(s => [
+  const buildExportRows = () => ({
+    headers: ['First Name','Last Name','Email','Phone','Staff Role','Department','Subject','Status','Joined'],
+    rows: filtered.map(s => [
       s.firstName || '', s.lastName || '', s.email, s.phone || '',
       s.staffRole || '', s.staffInfo?.department || '', s.staffInfo?.subject || '',
       s.isActive !== false ? 'Active' : 'Inactive',
       s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : ''
-    ]);
-    const csv  = [headers, ...rows].map(r => r.map(c => `"${c ?? ''}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `Staff_${new Date().toISOString().split('T')[0]}.csv`
-    }).click();
-  };
+    ]),
+  });
 
   if (loading && activeTab === 'staff') return (
     <div className="flex flex-col items-center justify-center h-96">
@@ -1019,10 +1014,11 @@ const StaffPanel = () => {
               className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
               <RefreshCw className="w-4 h-4" /> Refresh
             </button>
-            <button onClick={exportCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
-              <Download className="w-4 h-4" /> Export CSV
-            </button>
+            <ExportButton
+              filename="Staff"
+              title="Staff Management"
+              getRows={buildExportRows}
+            />
           </div>
         )}
       </div>

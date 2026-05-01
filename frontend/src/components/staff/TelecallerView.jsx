@@ -9,6 +9,7 @@ import LeadPipeline from './LeadPipeline'
 import AddLeadModal from './AddLeadModal'
 import LeadDetailsModal from './LeadDetailsModal'
 import BulkWhatsAppModal from '../common/BulkWhatsAppModal'
+import ExportButton from '../common/ExportButton'
 
 const TelecallerView = ({ onStatsUpdate }) => {
   const [view, setView] = useState('pipeline') // pipeline or table
@@ -96,28 +97,18 @@ const TelecallerView = ({ onStatsUpdate }) => {
     setShowDetailsModal(true)
   }
 
-  const exportToExcel = () => {
-    // Simple CSV export
-    const csv = [
-      ['Name', 'Mobile', 'Email', 'Stage', 'Batch Type', 'Lead Source', 'City'],
-      ...filteredLeads.map(lead => [
-        lead.fullName,
-        lead.mobile,
-        lead.email || '',
-        lead.stage,
-        lead.batchType,
-        lead.leadSource,
-        lead.city || ''
-      ])
-    ].map(row => row.join(',')).join('\n')
-
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `leads_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-  }
+  const buildExportRows = () => ({
+    headers: ['Name', 'Mobile', 'Email', 'Stage', 'Batch Type', 'Lead Source', 'City'],
+    rows: filteredLeads.map(lead => [
+      lead.fullName,
+      lead.mobile,
+      lead.email || '',
+      lead.stage,
+      lead.batchType,
+      lead.leadSource,
+      lead.city || '',
+    ]),
+  })
 
   return (
     <div className="space-y-6">
@@ -169,13 +160,11 @@ const TelecallerView = ({ onStatsUpdate }) => {
             </div>
 
             {/* Export Button */}
-            <button
-              onClick={exportToExcel}
-              className="p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors"
-              title="Export to CSV"
-            >
-              <Download className="w-5 h-5" />
-            </button>
+            <ExportButton
+              filename="Leads"
+              title="My Leads"
+              getRows={buildExportRows}
+            />
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import {
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
 import BulkWhatsAppModal from '../../common/BulkWhatsAppModal';
+import ExportButton from '../../common/ExportButton';
 
 
 // ─── Stage Badge Config ───────────────────────────────────────────────────────
@@ -435,10 +436,10 @@ const LeadsPanel = () => {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated  = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
-  // ─── Export CSV ────────────────────────────────────────────────────────────
-  const exportCSV = () => {
-    const headers = ['Name','Mobile','Email','Stage','Source','Assigned Telecaller','Assigned Counselor','Remarks Count','Created'];
-    const rows = filtered.map(l => [
+  // ─── Build export rows ─────────────────────────────────────────────────────
+  const buildExportRows = () => ({
+    headers: ['Name','Mobile','Email','Stage','Source','Assigned Telecaller','Assigned Counselor','Remarks Count','Created'],
+    rows: filtered.map(l => [
       l.fullName, l.mobile, l.email, l.stage,
       l.leadSource || l.source || '',
       l.assignedTelecaller?.firstName
@@ -449,15 +450,8 @@ const LeadsPanel = () => {
         : 'Unassigned',
       l.remarks?.length || 0,
       l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN') : '',
-    ]);
-    const csv  = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a    = Object.assign(document.createElement('a'), {
-      href:     URL.createObjectURL(blob),
-      download: `Leads_${filterStaff !== 'all' ? filterStaff + '_' : ''}${new Date().toISOString().split('T')[0]}.csv`,
-    });
-    a.click();
-  };
+    ]),
+  });
 
   // ─── Selection helpers (bulk WhatsApp) ─────────────────────────────────────
   const toggleOne = (id) => {
@@ -507,11 +501,11 @@ const LeadsPanel = () => {
             className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
-          <button
-            onClick={exportCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
+          <ExportButton
+            filename={`Leads${filterStaff !== 'all' ? `_${filterStaff}` : ''}`}
+            title="Lead Management"
+            getRows={buildExportRows}
+          />
         </div>
       </div>
 

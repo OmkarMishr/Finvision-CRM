@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import axiosInstance     from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
+import ExportButton      from '../common/ExportButton'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt    = (n)   => (n ?? 0).toLocaleString('en-IN')
@@ -340,7 +341,7 @@ const TelecallerReport = ({ user }) => {
     } catch (e) { console.error('Pass on failed:', e.response?.data || e.message) }
   }
 
-  const exportCSV = () => {
+  const buildExportRows = () => {
     const source  = activeTab === 'leads' ? leads : students
     const headers = activeTab === 'leads'
       ? ['Name','Phone','Email','Status','Source','Assigned To','Created']
@@ -356,12 +357,7 @@ const TelecallerReport = ({ user }) => {
       item.isPaid ? 'Paid' : 'Free',
       item.totalFee||0, fmtDate(item.createdAt)
     ])
-    const csv  = [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n')
-    const blob = new Blob([csv],{type:'text/csv'})
-    Object.assign(document.createElement('a'),{
-      href: URL.createObjectURL(blob),
-      download: `My_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`
-    }).click()
+    return { headers, rows }
   }
 
   const filtered = useMemo(() => {
@@ -482,10 +478,14 @@ const TelecallerReport = ({ user }) => {
                 <Send className="w-3.5 h-3.5" /> Pass to Counselor
               </button>
             )}
-            <button onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700">
-              <Download className="w-3.5 h-3.5" /> Export CSV
-            </button>
+            <ExportButton
+              variant="subtle"
+              label="Export"
+              filename={`My_${activeTab}`}
+              title={`My ${activeTab.charAt(0).toUpperCase()}${activeTab.slice(1)}`}
+              getRows={buildExportRows}
+              className="ml-1"
+            />
           </div>
         </div>
 
@@ -723,22 +723,17 @@ const CounselorReport = ({ user }) => {
     } catch (e) { console.error(e.response?.data||e.message) }
   }
 
-  const exportCSV = () => {
+  const buildExportRows = () => {
     const src = activeTab==='queue' ? queue : activeTab==='students' ? students : leads
-    const csv = [
-      ['Name','Phone','Status','Follow Up','Batch'],
-      ...src.map(item=>[
+    return {
+      headers: ['Name','Phone','Status','Follow Up','Batch'],
+      rows: src.map(item=>[
         item.name||`${item.firstName||''} ${item.lastName||''}`.trim(),
         item.phone||'', item.status||'',
         fmtDate(item.nextFollowUp),
         item.batch?.name||item.batchName||''
-      ])
-    ].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n')
-    const blob = new Blob([csv],{type:'text/csv'})
-    Object.assign(document.createElement('a'),{
-      href:URL.createObjectURL(blob),
-      download:`Counselor_${new Date().toISOString().split('T')[0]}.csv`
-    }).click()
+      ]),
+    }
   }
 
   const filtered = useMemo(() => {
@@ -863,10 +858,14 @@ const CounselorReport = ({ user }) => {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700">
               <Send className="w-3.5 h-3.5" /> Pass to Admin
             </button>
-            <button onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700">
-              <Download className="w-3.5 h-3.5" /> Export
-            </button>
+            <ExportButton
+              variant="subtle"
+              label="Export"
+              filename="Counselor"
+              title="Counselor Report"
+              getRows={buildExportRows}
+              className="ml-1"
+            />
           </div>
         </div>
 

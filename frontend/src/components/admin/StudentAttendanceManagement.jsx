@@ -7,6 +7,7 @@ import axiosInstance from '../../config/axios';
 import { API_ENDPOINTS } from '../../config/api';
 import MarkStudentAttendanceModal from './MarkStudentAttendanceModal';
 import StudentAttendanceDetailsModal from './StudentAttendanceDetailsModal';
+import ExportButton from '../common/ExportButton';
 
 const StudentAttendanceManagement = () => {
   const [attendance, setAttendance] = useState([]);
@@ -103,10 +104,10 @@ const StudentAttendanceManagement = () => {
     );
   });
 
-  const exportToCSV = () => {
-    const headers = ['Date', 'Student Name', 'Admission No', 'Email', 'Batch Type', 'Course', 'Branch', 'Time Slot', 'Status', 'Remarks'];
-    const rows = filteredAttendance.map(a => [
-      new Date(a.date).toLocaleDateString(),
+  const buildExportRows = () => ({
+    headers: ['Date', 'Student Name', 'Admission No', 'Email', 'Batch Type', 'Course', 'Branch', 'Time Slot', 'Status', 'Remarks'],
+    rows: filteredAttendance.map(a => [
+      a.date ? new Date(a.date).toLocaleDateString('en-IN') : '',
       a.studentId?.fullName || 'N/A',
       a.studentId?.admissionNumber || 'N/A',
       a.studentId?.email || 'N/A',
@@ -116,20 +117,8 @@ const StudentAttendanceManagement = () => {
       a.timeSlot,
       a.status,
       a.remarks || ''
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `student_attendance_${filters.date}.csv`;
-    a.click();
-  };
+    ]),
+  });
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -319,14 +308,12 @@ const StudentAttendanceManagement = () => {
             Mark Attendance
           </button>
 
-          <button
-            onClick={exportToCSV}
+          <ExportButton
+            filename={`student_attendance_${filters.date}`}
+            title="Student Attendance"
+            getRows={buildExportRows}
             disabled={filteredAttendance.length === 0}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center gap-2 whitespace-nowrap"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
+          />
         </div>
       </div>
 

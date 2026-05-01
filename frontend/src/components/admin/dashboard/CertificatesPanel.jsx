@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
-import Sidebar from '../../layout/Sidebar'; 
+import Sidebar from '../../layout/Sidebar';
 import { useAuth } from '../../../context/AuthContext';
+import ExportButton from '../../common/ExportButton';
 
 const CertificatesPanel = () => {
   const { user } = useAuth();
@@ -103,20 +104,12 @@ const CertificatesPanel = () => {
     ...new Set(certificates.map((c) => c.studentId?.courseCategory).filter(Boolean)),
   ];
 
-  const exportToCSV = () => {
-    const headers = [
-      'Certificate No',
-      'Student Name',
-      'Admission No',
-      'Course',
-      'Batch Type',
-      'Total Classes',
-      'Present Classes',
-      'Attendance %',
-      'Issue Date',
-    ];
-
-    const rows = filteredCertificates.map((cert) => [
+  const buildExportRows = () => ({
+    headers: [
+      'Certificate No', 'Student Name', 'Admission No', 'Course',
+      'Batch Type', 'Total Classes', 'Present Classes', 'Attendance %', 'Issue Date',
+    ],
+    rows: filteredCertificates.map((cert) => [
       cert.certificateNo,
       cert.studentId?.fullName || 'N/A',
       cert.studentId?.admissionNumber || 'N/A',
@@ -124,22 +117,10 @@ const CertificatesPanel = () => {
       cert.studentId?.batchType || 'N/A',
       cert.totalClasses,
       cert.presentClasses,
-      cert.attendancePercentage.toFixed(2),
-      new Date(cert.issuedDate).toLocaleDateString('en-IN'),
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `certificates_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
+      Number(cert.attendancePercentage || 0).toFixed(2),
+      cert.issuedDate ? new Date(cert.issuedDate).toLocaleDateString('en-IN') : '',
+    ]),
+  });
 
   if (loading) {
     return (
@@ -224,13 +205,12 @@ const CertificatesPanel = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={exportToCSV}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 shadow-lg"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
+              <ExportButton
+                filename="Certificates"
+                title="Certificates Issued"
+                getRows={buildExportRows}
+                className="shadow-lg"
+              />
               <button
                 onClick={fetchCertificates}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg"

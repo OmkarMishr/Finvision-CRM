@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, Users, Clock, Download, Search, UserCheck, Briefcase, TrendingUp, X, CheckCircle, XCircle } from 'lucide-react'
 import axiosInstance from '../../../config/axios'
 import { API_ENDPOINTS } from '../../../config/api'
+import ExportButton from '../../common/ExportButton'
 
 // ─── Helper: resolve staff full name regardless of schema shape ───────────────
 const getStaffName = (user) => {
@@ -343,32 +344,38 @@ const AttendancePanel = () => {
     fetchStaffStats(empty)
   }
 
-  // ── Export CSV ────────────────────────────────────────────────────────────
-  const exportToCSV = () => {
-    const data = activeTab === 'students' ? studentAttendance : staffAttendance
-    if (data.length === 0) { alert('No data to export'); return }
-
-    let csv = ''
-
+  // ── Build export rows for the active tab ─────────────────────────────────
+  const buildExportRows = () => {
     if (activeTab === 'students') {
-      csv = 'Date,Student Name,Admission No,Batch Type,Course,Branch,Time Slot,Status,Remarks\n'
-      data.forEach(r => {
-        csv += `${new Date(r.date).toLocaleDateString()},${r.studentId?.fullName || 'N/A'},${r.studentId?.admissionNumber || 'N/A'},${r.batchType || ''},${r.course || ''},${r.branch || ''},${r.timeSlot || ''},${r.status},"${r.remarks || ''}"\n`
-      })
-    } else {
-      csv = 'Date,Staff Name,Email,Check-in,Check-out,Working Hours,Status,Branch,Remarks\n'
-      data.forEach(r => {
-        const name = getStaffName(r.userId)
-        csv += `${new Date(r.date).toLocaleDateString()},${name},${r.userId?.email || 'N/A'},${r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString() : 'N/A'},${r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString() : 'N/A'},${r.workingHours || 0}h,${r.status},${r.branch || ''},"${r.remarks || ''}"\n`
-      })
+      return {
+        headers: ['Date', 'Student Name', 'Admission No', 'Batch Type', 'Course', 'Branch', 'Time Slot', 'Status', 'Remarks'],
+        rows: studentAttendance.map(r => [
+          r.date ? new Date(r.date).toLocaleDateString('en-IN') : '',
+          r.studentId?.fullName || 'N/A',
+          r.studentId?.admissionNumber || 'N/A',
+          r.batchType || '',
+          r.course || '',
+          r.branch || '',
+          r.timeSlot || '',
+          r.status,
+          r.remarks || '',
+        ]),
+      }
     }
-
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url  = window.URL.createObjectURL(blob)
-    Object.assign(document.createElement('a'), {
-      href:     url,
-      download: `${activeTab}_attendance_${new Date().toISOString().split('T')[0]}.csv`
-    }).click()
+    return {
+      headers: ['Date', 'Staff Name', 'Email', 'Check-in', 'Check-out', 'Working Hours', 'Status', 'Branch', 'Remarks'],
+      rows: staffAttendance.map(r => [
+        r.date ? new Date(r.date).toLocaleDateString('en-IN') : '',
+        getStaffName(r.userId),
+        r.userId?.email || 'N/A',
+        r.checkInTime  ? new Date(r.checkInTime).toLocaleTimeString('en-IN')  : 'N/A',
+        r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString('en-IN') : 'N/A',
+        r.workingHours ? `${r.workingHours}h` : '0h',
+        r.status,
+        r.branch || '',
+        r.remarks || '',
+      ]),
+    }
   }
 
   // ── Client-side search filter ─────────────────────────────────────────────
@@ -478,13 +485,12 @@ const AttendancePanel = () => {
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
-            <button
-              onClick={exportToCSV}
-              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export CSV</span>
-            </button>
+            <ExportButton
+              filename={`${activeTab}_attendance`}
+              title={`${activeTab === 'students' ? 'Student' : 'Staff'} Attendance`}
+              getRows={buildExportRows}
+              className="shadow-lg"
+            />
           </div>
 
           {/* Student Filters */}

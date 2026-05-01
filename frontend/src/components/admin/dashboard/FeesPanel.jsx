@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
+import ExportButton from '../../common/ExportButton';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAYMENT_MODES   = ['Cash', 'Online', 'UPI', 'Bank Transfer', 'Card', 'Cheque'];
@@ -524,9 +525,9 @@ const FeesPanel = () => {
     );
   });
 
-  const exportCSV = () => {
-    const headers = ['Receipt No', 'Student', 'Mobile', 'Fee Head', 'Course', 'Base Amount', 'Discount', 'Amount Paid', 'Mode', 'Status', 'Date'];
-    const rows = payments.map(p => [
+  const buildExportRows = () => ({
+    headers: ['Receipt No', 'Student', 'Mobile', 'Fee Head', 'Course', 'Base Amount', 'Discount', 'Amount Paid', 'Mode', 'Status', 'Date'],
+    rows: payments.map(p => [
       p.receiptNo,
       p.studentId?.fullName || '',
       p.studentId?.mobile || '',
@@ -534,14 +535,8 @@ const FeesPanel = () => {
       p.baseAmount || 0, p.couponDiscount || 0, p.amount || 0,
       p.paymentMode, p.status,
       p.paidDate ? new Date(p.paidDate).toLocaleDateString('en-IN') : ''
-    ]);
-    const csv  = [headers, ...rows].map(r => r.map(c => `"${c ?? ''}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `Fees_${new Date().toISOString().split('T')[0]}.csv`
-    }).click();
-  };
+    ]),
+  });
 
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -563,10 +558,11 @@ const FeesPanel = () => {
             className="px-4 py-2 bg-[#1a1a1a] text-white rounded-lg hover:bg-[#2d2d2d] flex items-center gap-2 text-sm">
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
-          <button onClick={exportCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
+          <ExportButton
+            filename="Fees"
+            title="Fee Management"
+            getRows={buildExportRows}
+          />
         </div>
       </div>
 

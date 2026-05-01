@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
+import ExportButton from '../common/ExportButton'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtTime = (iso) =>
@@ -275,22 +276,16 @@ const AttendanceLog = () => {
         return { present, late, absent, half, workDays, totalMins, avgMins, rate }
     }, [records, filterMonth])
 
-    // ── Export CSV ─────────────────────────────────────────────────────────
-    const exportCSV = () => {
-        const headers = ['Date', 'Day', 'Status', 'Check In', 'Check Out', 'Working Hours', 'Late By']
-        const rows = filtered.map(r => [
+    // ── Build export rows for ExportButton ─────────────────────────────────
+    const buildExportRows = () => ({
+        headers: ['Date', 'Day', 'Status', 'Check In', 'Check Out', 'Working Hours', 'Late By'],
+        rows: filtered.map(r => [
             fmtDate(r.date), fmtDay(r.date), r.status || '',
             fmtTime(r.checkInTime), fmtTime(r.checkOutTime),
             minsToHrs(r.workingMinutes),
             r.lateByMinutes ? `${r.lateByMinutes}m` : '—',
-        ])
-        const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n')
-        const blob = new Blob([csv], { type: 'text/csv' })
-        Object.assign(document.createElement('a'), {
-            href: URL.createObjectURL(blob),
-            download: `Attendance_Log_${filterMonth}.csv`,
-        }).click()
-    }
+        ]),
+    })
 
     // ── Calendar nav ───────────────────────────────────────────────────────
     const prevCalMonth = () => {
@@ -340,11 +335,11 @@ const AttendanceLog = () => {
                         <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                         Refresh
                     </button>
-                    <button onClick={exportCSV}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
-                        <Download className="w-4 h-4" />
-                        Export CSV
-                    </button>
+                    <ExportButton
+                        filename={`Attendance_Log_${filterMonth}`}
+                        title="Attendance Log"
+                        getRows={buildExportRows}
+                    />
                 </div>
             </div>
 
