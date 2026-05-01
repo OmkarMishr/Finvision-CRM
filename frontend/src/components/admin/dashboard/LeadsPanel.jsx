@@ -3,10 +3,11 @@ import {
   Users, Search, Filter, Eye, Trash2, RefreshCw, Download,
   ChevronLeft, ChevronRight, Phone, Mail, Calendar, X,
   TrendingUp, UserCheck, MessageSquare, Clock, CheckCircle,
-  XCircle, AlertCircle, User
+  XCircle, AlertCircle, User, Send
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
+import BulkWhatsAppModal from '../../common/BulkWhatsAppModal';
 
 
 // ─── Stage Badge Config ───────────────────────────────────────────────────────
@@ -284,8 +285,14 @@ const LeadsPanel = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [assignModal,   setAssignModal]   = useState(null);
   const [importStatus,  setImportStatus]  = useState(null);
+  const [selectedIds,   setSelectedIds]   = useState(new Set());
+  const [bulkOpen,      setBulkOpen]      = useState(false);
 
   const PER_PAGE = 10;
+
+  // Reset selection when filters/search change so users don't accidentally
+  // bulk-message someone they can no longer see in the table.
+  useEffect(() => { setSelectedIds(new Set()); }, [search, filterStage, filterStaff, filterSource]);
 
   // ─── Fetch telecallers for assign dropdown ─────────────────────────────────
   const fetchTelecallers = async () => {
@@ -452,6 +459,30 @@ const LeadsPanel = () => {
     a.click();
   };
 
+  // ─── Selection helpers (bulk WhatsApp) ─────────────────────────────────────
+  const toggleOne = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const togglePageAll = () => {
+    setSelectedIds(prev => {
+      const pageIds   = paginated.map(l => l._id);
+      const allOnPage = pageIds.every(id => prev.has(id));
+      const next = new Set(prev);
+      if (allOnPage) pageIds.forEach(id => next.delete(id));
+      else           pageIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+  const selectAllFiltered = () => setSelectedIds(new Set(filtered.map(l => l._id)));
+  const clearSelection    = () => setSelectedIds(new Set());
+
+  const selectedLeads     = leads.filter(l => selectedIds.has(l._id));
+  const allOnPageSelected = paginated.length > 0 && paginated.every(l => selectedIds.has(l._id));
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-96">
       <RefreshCw className="w-10 h-10 animate-spin text-[#C8294A] mb-3" />
@@ -614,12 +645,45 @@ const LeadsPanel = () => {
         </div>
       )}
 
+      {/* Sticky Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-2 z-20 bg-[#1a1a1a] text-white rounded-xl shadow-lg px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3 text-sm">
+            <CheckCircle className="w-4 h-4 text-green-400" />
+            <span className="font-semibold">{selectedIds.size} selected</span>
+            {selectedIds.size < filtered.length && (
+              <button onClick={selectAllFiltered}
+                className="text-xs text-white/80 hover:text-white underline">
+                Select all {filtered.length} matching
+              </button>
+            )}
+            <button onClick={clearSelection}
+              className="text-xs text-white/60 hover:text-white">
+              Clear
+            </button>
+          </div>
+          <button onClick={() => setBulkOpen(true)}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" /> Send WhatsApp
+          </button>
+        </div>
+      )}
+
       {/* Leads Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                <th className="px-3 py-3 w-10 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={togglePageAll}
+                    className="w-4 h-4 rounded border-gray-300 text-[#C8294A] focus:ring-[#C8294A]"
+                    title={allOnPageSelected ? 'Unselect all on this page' : 'Select all on this page'}
+                  />
+                </th>
                 {['Lead', 'Contact', 'Stage', 'Source', 'Assigned To', 'Remarks', 'Created', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
@@ -630,14 +694,25 @@ const LeadsPanel = () => {
             <tbody className="divide-y divide-gray-50">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-14">
+                  <td colSpan={9} className="text-center py-14">
                     <TrendingUp className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                     <p className="text-gray-400 font-medium">No leads found</p>
                     <p className="text-gray-400 text-xs mt-1">Try adjusting your filters</p>
                   </td>
                 </tr>
               ) : paginated.map(lead => (
-                <tr key={lead._id} className="hover:bg-gray-50 transition-colors">
+                <tr key={lead._id}
+                  className={`hover:bg-gray-50 transition-colors ${selectedIds.has(lead._id) ? 'bg-[#C8294A]/5' : ''}`}>
+
+                  {/* Row checkbox */}
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(lead._id)}
+                      onChange={() => toggleOne(lead._id)}
+                      className="w-4 h-4 rounded border-gray-300 text-[#C8294A] focus:ring-[#C8294A]"
+                    />
+                  </td>
 
                   {/* Lead Name */}
                   <td className="px-4 py-3">
@@ -778,6 +853,15 @@ const LeadsPanel = () => {
           </div>
         )}
       </div>
+
+      {/* Bulk WhatsApp Modal */}
+      {bulkOpen && (
+        <BulkWhatsAppModal
+          leads={selectedLeads}
+          onClose={() => setBulkOpen(false)}
+          onSent={() => { /* keep selection so the user can verify per-row results */ }}
+        />
+      )}
 
       {/* Lead Detail Modal */}
       {selectedLead && (

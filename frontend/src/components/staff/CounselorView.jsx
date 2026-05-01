@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import {
   Users, TrendingUp, CheckCircle, Clock, Search,
-  Eye, PhoneCall
+  Eye, PhoneCall, MessageSquare
 } from 'lucide-react'
 import axiosInstance from '../../config/axios'
 import { API_ENDPOINTS } from '../../config/api'
 import LeadDetailsModal from './LeadDetailsModal'
+import BulkWhatsAppModal from '../common/BulkWhatsAppModal'
 
 const CounselorView = ({ onStatsUpdate }) => {
   const [leads, setLeads] = useState([])
@@ -15,6 +16,8 @@ const CounselorView = ({ onStatsUpdate }) => {
   const [selectedLead, setSelectedLead] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStage, setFilterStage] = useState('Counselling')
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const [stats, setStats] = useState({
     totalInCounselling: 0,
@@ -164,6 +167,25 @@ const CounselorView = ({ onStatsUpdate }) => {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="sticky top-2 z-20 bg-[#1a1a1a] text-white rounded-xl shadow-lg px-4 py-3 mb-3 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3 text-sm">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span className="font-semibold">{selectedIds.size} selected</span>
+              <button onClick={() => setSelectedIds(new Set(filteredLeads.map(l => l._id)))}
+                className="text-xs text-white/80 hover:text-white underline">
+                Select all {filteredLeads.length}
+              </button>
+              <button onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-white/60 hover:text-white">Clear</button>
+            </div>
+            <button onClick={() => setBulkOpen(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" /> Send WhatsApp
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-12">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -174,6 +196,18 @@ const CounselorView = ({ onStatsUpdate }) => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="px-4 py-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={filteredLeads.length > 0 && filteredLeads.every(l => selectedIds.has(l._id))}
+                      onChange={() => {
+                        const ids = filteredLeads.map(l => l._id);
+                        const allSel = ids.length > 0 && ids.every(id => selectedIds.has(id));
+                        setSelectedIds(allSel ? new Set() : new Set(ids));
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Mobile</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Stage</th>
@@ -185,7 +219,19 @@ const CounselorView = ({ onStatsUpdate }) => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredLeads.map((lead) => (
-                  <tr key={lead._id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={lead._id} className={`hover:bg-gray-50 transition-colors ${selectedIds.has(lead._id) ? 'bg-blue-50' : ''}`}>
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead._id)}
+                        onChange={() => setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(lead._id)) next.delete(lead._id); else next.add(lead._id);
+                          return next;
+                        })}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">{lead.fullName}</div>
                       <div className="text-xs text-gray-500">{lead.email}</div>
@@ -248,6 +294,13 @@ const CounselorView = ({ onStatsUpdate }) => {
           lead={selectedLead}
           onClose={() => setShowDetailsModal(false)}
           onLeadUpdated={handleLeadUpdated}
+        />
+      )}
+
+      {bulkOpen && (
+        <BulkWhatsAppModal
+          leads={filteredLeads.filter(l => selectedIds.has(l._id))}
+          onClose={() => setBulkOpen(false)}
         />
       )}
     </div>

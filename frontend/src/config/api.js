@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     base:             `${API_URL}/api/leads`,
     stats:            `${API_URL}/api/leads/stats/overview`,
     importSheet:      `${API_URL}/api/leads/import-sheet`,
+    bulkWhatsapp:     `${API_URL}/api/leads/bulk-whatsapp`,
     byId:             (id) => `${API_URL}/api/leads/${id}`,
     updateStage:      (id) => `${API_URL}/api/leads/${id}/stage`,
     addRemark:        (id) => `${API_URL}/api/leads/${id}/remarks`,

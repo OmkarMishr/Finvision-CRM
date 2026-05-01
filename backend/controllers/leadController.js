@@ -2,6 +2,7 @@ const Lead     = require('../models/Lead');
 const mongoose = require('mongoose');
 const { getSheetData }        = require('../utils/googleSheets');
 const { mapSheetRowsToLeads } = require('../utils/mapSheetToLead');
+const whatsappService         = require('../services/whatsappService');
 
 // Handles both { userId } and { id } and { _id } shapes from JWT middleware
 const reqUserId = (req) => req.user?.userId || req.user?._id || req.user?.id;
@@ -666,6 +667,84 @@ const assignTelecaller = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Send the same WhatsApp message to multiple selected leads
+// @route   POST /api/leads/bulk-whatsapp
+// @access  Private (Admin / Staff)
+// Body: { leadIds: [String], message: String }
+// Response: { sent, failed, results: [{ leadId, mobile, ok, link?, error? }] }
+// ─────────────────────────────────────────────────────────────────────────────
+const sendBulkWhatsapp = async (req, res) => {
+  try {
+    const { leadIds, message } = req.body;
+
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'leadIds must be a non-empty array' });
+    }
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'message is required' });
+    }
+    if (leadIds.length > 200) {
+      return res.status(400).json({ success: false, message: 'Cannot send to more than 200 leads in one batch' });
+    }
+
+    // Fetch leads, scoped by role so a telecaller cannot blast someone else's
+    // pipeline — admins see everything via getAllLeads's same `roleBasedQuery`.
+    const baseQuery = roleBasedQuery(req);
+    const idQuery   = { _id: { $in: leadIds.filter(mongoose.isValidObjectId) } };
+    const leads     = await Lead.find({ ...baseQuery, ...idQuery })
+      .select('_id fullName mobile')
+      .lean();
+
+    if (leads.length === 0) {
+      return res.status(404).json({ success: false, message: 'No matching leads found (or you are not assigned to any of them)' });
+    }
+
+    const recipients = leads
+      .filter(l => l.mobile && String(l.mobile).trim())
+      .map(l => ({ leadId: String(l._id), fullName: l.fullName, mobile: l.mobile }));
+
+    const results = await whatsappService.sendBulk(recipients, message.trim());
+
+    const sent   = results.filter(r => r.ok).length;
+    const failed = results.length - sent;
+
+    // Audit trail: append a remark to every successfully messaged lead so the
+    // pipeline shows what was sent and by whom.
+    const senderId = reqUserId(req);
+    const successful = results.filter(r => r.ok && r.leadId);
+    if (successful.length > 0) {
+      const trimmed = message.trim().slice(0, 500);
+      await Lead.updateMany(
+        { _id: { $in: successful.map(r => r.leadId) } },
+        {
+          $push: {
+            remarks: {
+              note:    `WhatsApp sent: "${trimmed}"`,
+              addedBy: senderId,
+              addedAt: new Date(),
+            },
+          },
+          $set: { lastFollowUp: new Date() },
+        },
+      );
+    }
+
+    res.json({
+      success:  true,
+      provider: (process.env.WHATSAPP_PROVIDER || 'wa_link').toLowerCase(),
+      requested: leadIds.length,
+      matched:   leads.length,
+      sent,
+      failed,
+      results,
+    });
+  } catch (error) {
+    console.error('sendBulkWhatsapp error:', error);
+    res.status(500).json({ success: false, message: 'Bulk WhatsApp send failed', error: error.message });
+  }
+};
+
 module.exports = {
   getAllLeads,
   getLeadsFromSheet,
@@ -678,4 +757,5 @@ module.exports = {
   deleteLead,
   importSheetLeadsToMongo,
   assignTelecaller,
+  sendBulkWhatsapp,
 };
