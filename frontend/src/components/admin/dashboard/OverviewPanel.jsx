@@ -13,127 +13,175 @@ import BranchPerformance from '../analytics/BranchPerformance';
 import DailyMISReport   from '../analytics/DailyMISReport';
 import BackupRestore    from '../BackupRestore';
 
+// ─── Filter helpers ──────────────────────────────────────────────────────────
+// Resolve the Daily/Weekly/Monthly dropdown to a [start, end) date range.
+//   daily    → today 00:00 → tomorrow 00:00
+//   weekly   → 7 days ago 00:00 → tomorrow 00:00
+//   monthly  → 30 days ago 00:00 → tomorrow 00:00
+const getDateRange = (timeRange) => {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (timeRange === 'weekly')  start.setDate(start.getDate() - 6);
+  if (timeRange === 'monthly') start.setDate(start.getDate() - 29);
+  return { start, end };
+};
+
+const inRange = (dateLike, { start, end }) => {
+  if (!dateLike) return false;
+  const t = new Date(dateLike).getTime();
+  return t >= start.getTime() && t <= end.getTime();
+};
+
+// Branch may live on `branch`, `city`, or `location` depending on the source.
+// Compare case-insensitively. 'all' always passes.
+const inBranch = (record, branch) => {
+  if (!branch || branch === 'all') return true;
+  const target = branch.toLowerCase();
+  return [record?.branch, record?.city, record?.location]
+    .some(v => typeof v === 'string' && v.toLowerCase() === target);
+};
+
 const OverviewPanel = () => {
   const [loading, setLoading]           = useState(true);
   const [timeRange, setTimeRange]       = useState('daily');
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [branches]                      = useState(['Raipur', 'Bhilai']);
 
-  const [dashboardStats, setDashboardStats] = useState({
-    leads:      { total: 0, enquiry: 0, counselling: 0, freeBatch: 0, paidBatch: 0, converted: 0, conversionRate: 0 },
-    students:   { total: 0, active: 0, inactive: 0, free: 0, paid: 0 },
-    revenue:    { total: 0, collected: 0, pending: 0, today: 0, thisWeek: 0, thisMonth: 0 },
-    attendance: { today: 0, present: 0, absent: 0, percentage: 0 },
-    batches:    { total: 0, active: 0, free: 0, paid: 0 }
-  });
+  // Raw data — fetched once, filtered client-side every time the user changes
+  // timeRange or branch. This is what makes those dropdowns actually work.
+  const [allLeads,      setAllLeads]      = useState([]);
+  const [allStudents,   setAllStudents]   = useState([]);
+  const [allPayments,   setAllPayments]   = useState([]);
+  const [allAttendance, setAllAttendance] = useState([]);
+  const [batchStats,    setBatchStats]    = useState({ total: 0, active: 0, free: 0, paid: 0 });
 
-  const [recentLeads,   setRecentLeads]   = useState([]);
-  const [recentRemarks, setRecentRemarks] = useState([]);
-
-  useEffect(() => { fetchAll(); }, [timeRange, selectedBranch]);
+  // Re-fetch raw data on mount only. The filters don't need new fetches.
+  useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchLeadStats(), fetchStudentStats(), fetchRevenueStats(),
-        fetchAttendanceStats(), fetchBatchStats(), fetchRecentData()
-      ]);
+      const [leadsRes, studentsRes, paymentsRes, attendanceRes, batchesRes] =
+        await Promise.allSettled([
+          axiosInstance.get(API_ENDPOINTS.leads.base),
+          axiosInstance.get(API_ENDPOINTS.students.base),
+          axiosInstance.get(API_ENDPOINTS.fees.base, { params: { limit: 500 } }),
+          axiosInstance.get(API_ENDPOINTS.studentAttendance.getAll),
+          axiosInstance.get(API_ENDPOINTS.batches.statistics),
+        ]);
+
+      if (leadsRes.status === 'fulfilled') {
+        const d = leadsRes.value.data;
+        setAllLeads(Array.isArray(d) ? d : d?.data || d?.leads || []);
+      }
+      if (studentsRes.status === 'fulfilled') {
+        const d = studentsRes.value.data;
+        setAllStudents(Array.isArray(d) ? d : d?.data || d?.students || []);
+      }
+      if (paymentsRes.status === 'fulfilled') {
+        const d = paymentsRes.value.data;
+        setAllPayments(Array.isArray(d) ? d : d?.data || []);
+      }
+      if (attendanceRes.status === 'fulfilled') {
+        const d = attendanceRes.value.data;
+        setAllAttendance(Array.isArray(d) ? d : d?.data || []);
+      }
+      if (batchesRes.status === 'fulfilled') {
+        const stats = batchesRes.value.data?.data || batchesRes.value.data || {};
+        setBatchStats({
+          total:  stats.totalBatches  || stats.total  || 0,
+          active: stats.activeBatches || stats.active || 0,
+          free:   stats.freeBatches   || stats.free   || 0,
+          paid:   stats.paidBatches   || stats.paid   || 0,
+        });
+      }
     } catch (e) {
-      console.error(e);
+      console.error('OverviewPanel fetchAll error:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchLeadStats = async () => {
-    try {
-      const res   = await axiosInstance.get(API_ENDPOINTS.leads.stats);
-      const stats = res.data.data || res.data || {};
-      const total = stats.totalLeads || stats.total || 0;
-      const byStage   = stats.byStage || {};
-      const converted = byStage['Admission'] || 0;
-      const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(2) : 0;
-      setDashboardStats(p => ({ ...p, leads: {
-        total, converted, conversionRate,
-        enquiry:     byStage['Enquiry']     || 0,
-        counselling: byStage['Counselling'] || 0,
-        freeBatch:   byStage['Free Batch']  || 0,
-        paidBatch:   byStage['Paid Batch']  || 0,
-      }}));
-    } catch (e) { console.error(e); }
-  };
+  // ─── Derive scoped datasets + stats from raw data + active filters ────────
+  // Recomputed whenever timeRange / branch / raw datasets change.
+  const range = React.useMemo(() => getDateRange(timeRange), [timeRange]);
 
-  const fetchStudentStats = async () => {
-    try {
-      const res   = await axiosInstance.get(API_ENDPOINTS.students.stats);
-      const stats = res.data.data || res.data || {};
-      setDashboardStats(p => ({ ...p, students: {
-        total:    stats.total    || 0,
-        active:   stats.active   || 0,
-        inactive: stats.inactive || 0,
-        free:     stats.freeBatch || 0,
-        paid:     stats.paidBatch || 0,
-      }}));
-    } catch (e) { console.error(e); }
-  };
+  const filteredLeads = React.useMemo(() =>
+    allLeads.filter(l => inBranch(l, selectedBranch) && inRange(l.createdAt, range)),
+    [allLeads, selectedBranch, range]
+  );
 
-  const fetchRevenueStats = async () => {
-    try {
-      const res = await axiosInstance.get(API_ENDPOINTS.fees.stats);
-      const stats = res.data.data || res.data || {};
-      setDashboardStats(p => ({ ...p, revenue: {
-        total:     stats.totalRevenue    || 0,
-        collected: stats.collectedAmount || 0,
-        pending:   stats.pendingAmount   || 0,
-        today:     stats.todayRevenue    || 0,
-        thisWeek:  stats.weekRevenue     || 0,
-        thisMonth: stats.monthRevenue    || 0,
-      }}));
-    } catch (e) { console.error(e); }
-  };
+  const filteredStudents = React.useMemo(() =>
+    allStudents.filter(s => inBranch(s, selectedBranch) && inRange(s.createdAt, range)),
+    [allStudents, selectedBranch, range]
+  );
 
-  const fetchAttendanceStats = async () => {
-    try {
-      const res       = await axiosInstance.get(API_ENDPOINTS.studentAttendance.statistics);
-      const statsData = res.data?.data || res.data || {};
-      setDashboardStats(p => ({ ...p, attendance: {
-        today:      statsData.total              || 0,
-        present:    statsData.present            || 0,
-        absent:     statsData.absent             || 0,
-        percentage: parseFloat(statsData.presentPercentage || 0),
-      }}));
-    } catch (e) { console.error(e); }
-  };
+  const filteredPayments = React.useMemo(() =>
+    allPayments.filter(p => {
+      // Payments don't store a branch — derive from the populated student.
+      const studentBranch = p.studentId?.branch || p.studentId?.city;
+      const branchOK = selectedBranch === 'all'
+        || (typeof studentBranch === 'string' && studentBranch.toLowerCase() === selectedBranch.toLowerCase());
+      return branchOK && inRange(p.paidDate || p.createdAt, range);
+    }),
+    [allPayments, selectedBranch, range]
+  );
 
-  const fetchBatchStats = async () => {
-    try {
-      const res   = await axiosInstance.get(API_ENDPOINTS.batches.statistics);
-      const stats = res.data.data || res.data || {};
-      setDashboardStats(p => ({ ...p, batches: {
-        total:  stats.totalBatches  || 0,
-        active: stats.activeBatches || 0,
-        free:   stats.freeBatches   || 0,
-        paid:   stats.paidBatches   || 0,
-      }}));
-    } catch (e) { console.error(e); }
-  };
+  const filteredAttendance = React.useMemo(() =>
+    allAttendance.filter(a => inBranch(a, selectedBranch) && inRange(a.date || a.createdAt, range)),
+    [allAttendance, selectedBranch, range]
+  );
 
-  const fetchRecentData = async () => {
-    try {
-      const res = await axiosInstance.get(API_ENDPOINTS.leads.base);
-      let allLeads = Array.isArray(res.data) ? res.data
-        : Array.isArray(res.data?.data) ? res.data.data
-        : res.data?.leads || [];
-      setRecentLeads(allLeads.slice(0, 5));
-      const remarks = allLeads
-        .filter(l => l.remarks?.length)
-        .flatMap(l => l.remarks.map(r => ({ ...r, leadName: l.fullName || 'Unknown' })))
-        .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
-        .slice(0, 10);
-      setRecentRemarks(remarks);
-    } catch (e) { console.error(e); }
-  };
+  const dashboardStats = React.useMemo(() => {
+    const total       = filteredLeads.length;
+    const enquiry     = filteredLeads.filter(l => l.stage === 'Enquiry').length;
+    const counselling = filteredLeads.filter(l => l.stage === 'Counselling').length;
+    const freeBatch   = filteredLeads.filter(l => l.stage === 'Free Batch').length;
+    const paidBatch   = filteredLeads.filter(l => l.stage === 'Paid Batch').length;
+    const converted   = filteredLeads.filter(l => l.stage === 'Admission').length;
+    const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(2) : 0;
+
+    const collected = filteredPayments
+      .filter(p => p.status === 'SUCCESS' || p.status === 'Completed')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const pending   = filteredStudents.reduce((sum, s) => sum + (Number(s.pendingFees) || 0), 0);
+    const totalFees = filteredStudents.reduce((sum, s) => sum + (Number(s.totalFees)   || 0), 0);
+
+    const present = filteredAttendance.filter(a => ['Present', 'Late'].includes(a.status)).length;
+    const absent  = filteredAttendance.filter(a => a.status === 'Absent').length;
+    const totalAtt = filteredAttendance.length;
+    const percentage = totalAtt > 0 ? ((present / totalAtt) * 100).toFixed(1) : 0;
+
+    return {
+      leads: { total, enquiry, counselling, freeBatch, paidBatch, converted, conversionRate },
+      students: {
+        total:    filteredStudents.length,
+        active:   filteredStudents.filter(s => s.status === 'Active').length,
+        inactive: filteredStudents.filter(s => s.status === 'Inactive').length,
+        free:     filteredStudents.filter(s => s.batchType === 'Free').length,
+        paid:     filteredStudents.filter(s => s.batchType === 'Paid').length,
+      },
+      revenue: { total: totalFees, collected, pending },
+      attendance: { today: totalAtt, present, absent, percentage },
+      batches: batchStats,
+    };
+  }, [filteredLeads, filteredStudents, filteredPayments, filteredAttendance, batchStats]);
+
+  const recentLeads = React.useMemo(
+    () => filteredLeads.slice(0, 5),
+    [filteredLeads]
+  );
+
+  const recentRemarks = React.useMemo(() =>
+    filteredLeads
+      .filter(l => l.remarks?.length)
+      .flatMap(l => l.remarks.map(r => ({ ...r, leadName: l.fullName || 'Unknown' })))
+      .sort((a, b) => new Date(b.addedAt || b.timestamp || 0) - new Date(a.addedAt || a.timestamp || 0))
+      .slice(0, 10),
+    [filteredLeads]
+  );
 
   const exportMISReport = () => {
     const rows = [
@@ -275,7 +323,7 @@ const OverviewPanel = () => {
             <h3 className="text-lg font-semibold text-[#1a1a1a]">Revenue Trend</h3>
             <BarChart3 className="w-5 h-5 text-[#C8294A]" />
           </div>
-          <RevenueChart timeRange={timeRange} />
+          <RevenueChart timeRange={timeRange} payments={filteredPayments} />
         </div>
         <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
           <div className="flex justify-between items-center mb-4">
@@ -300,7 +348,12 @@ const OverviewPanel = () => {
             <h3 className="text-lg font-semibold text-[#1a1a1a]">Branch Performance</h3>
             <Building2 className="w-5 h-5 text-[#C8294A]" />
           </div>
-          <BranchPerformance branches={branches} />
+          <BranchPerformance
+            branches={branches}
+            leads={allLeads.filter(l => inRange(l.createdAt, range))}
+            students={allStudents.filter(s => inRange(s.createdAt, range))}
+            highlightBranch={selectedBranch}
+          />
         </div>
       </div>
 
@@ -347,16 +400,23 @@ const OverviewPanel = () => {
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500">No recent remarks</p>
               </div>
-            ) : recentRemarks.map((remark, i) => (
-              <div key={i} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex justify-between mb-1">
-                  <p className="font-medium text-gray-800">{remark.leadName}</p>
-                  <span className="text-xs text-gray-500">{new Date(remark.timestamp || remark.createdAt).toLocaleDateString()}</span>
+            ) : recentRemarks.map((remark, i) => {
+              const addedBy = remark.addedBy?.firstName
+                ? `${remark.addedBy.firstName} ${remark.addedBy.lastName || ''}`.trim()
+                : (remark.addedBy || 'System');
+              return (
+                <div key={i} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex justify-between mb-1">
+                    <p className="font-medium text-gray-800">{remark.leadName}</p>
+                    <span className="text-xs text-gray-500">
+                      {remark.addedAt ? new Date(remark.addedAt).toLocaleDateString('en-IN') : ''}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">{remark.note || remark.text}</p>
+                  <p className="text-xs text-gray-500 mt-1">By: {addedBy}</p>
                 </div>
-                <p className="text-sm text-gray-600">{remark.text}</p>
-                <p className="text-xs text-gray-500 mt-1">By: {remark.addedBy || 'System'}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
