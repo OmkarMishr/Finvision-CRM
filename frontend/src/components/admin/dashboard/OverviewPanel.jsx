@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, DollarSign, TrendingUp, Award, Calendar, FileText,
   Download, RefreshCw, Database, Building2, Phone, UserCheck,
-  GraduationCap, BarChart3, PieChart, CheckCircle
+  GraduationCap, BarChart3, PieChart, CheckCircle, Briefcase
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
@@ -14,11 +14,15 @@ import DailyMISReport   from '../analytics/DailyMISReport';
 import BackupRestore    from '../BackupRestore';
 
 // ─── Filter helpers ──────────────────────────────────────────────────────────
-// Resolve the Daily/Weekly/Monthly dropdown to a [start, end) date range.
-//   daily    → today 00:00 → tomorrow 00:00
-//   weekly   → 7 days ago 00:00 → tomorrow 00:00
-//   monthly  → 30 days ago 00:00 → tomorrow 00:00
+// Resolve the time-range dropdown to a [start, end] window.
+//   daily    → today 00:00 → today 23:59
+//   weekly   → 6 days ago 00:00 → today 23:59
+//   monthly  → 29 days ago 00:00 → today 23:59
+//   all      → epoch → far future (effectively unbounded)
 const getDateRange = (timeRange) => {
+  if (timeRange === 'all') {
+    return { start: new Date(0), end: new Date(8640000000000000) };
+  }
   const end = new Date();
   end.setHours(23, 59, 59, 999);
   const start = new Date();
@@ -43,19 +47,41 @@ const inBranch = (record, branch) => {
     .some(v => typeof v === 'string' && v.toLowerCase() === target);
 };
 
+// Format an INR amount at the right magnitude. Avoids the "₹0.0L" footgun
+// when the underlying value is non-zero but smaller than a lakh.
+//   < 1,000        → "₹847"
+//   1,000-99,999   → "₹4.5K"
+//   ≥ 1,00,000     → "₹1.25L"
+const formatINR = (n) => {
+  const v = Number(n) || 0;
+  if (v >= 100000) return `₹${(v / 100000).toFixed(2)}L`;
+  if (v >= 1000)   return `₹${(v / 1000).toFixed(1)}K`;
+  return `₹${v.toLocaleString('en-IN')}`;
+};
+
+// Same date used by every "today" stat. Cached per render.
+const isSameDay = (a, b) => {
+  const x = new Date(a), y = new Date(b);
+  return x.getFullYear() === y.getFullYear()
+      && x.getMonth()    === y.getMonth()
+      && x.getDate()     === y.getDate();
+};
+
 const OverviewPanel = () => {
   const [loading, setLoading]           = useState(true);
-  const [timeRange, setTimeRange]       = useState('daily');
+  const [timeRange, setTimeRange]       = useState('all');
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [branches]                      = useState(['Raipur', 'Bhilai']);
 
   // Raw data — fetched once, filtered client-side every time the user changes
   // timeRange or branch. This is what makes those dropdowns actually work.
-  const [allLeads,      setAllLeads]      = useState([]);
-  const [allStudents,   setAllStudents]   = useState([]);
-  const [allPayments,   setAllPayments]   = useState([]);
-  const [allAttendance, setAllAttendance] = useState([]);
-  const [batchStats,    setBatchStats]    = useState({ total: 0, active: 0, free: 0, paid: 0 });
+  const [allLeads,           setAllLeads]           = useState([]);
+  const [allStudents,        setAllStudents]        = useState([]);
+  const [allPayments,        setAllPayments]        = useState([]);
+  const [allAttendance,      setAllAttendance]      = useState([]);
+  const [allStaffAttendance, setAllStaffAttendance] = useState([]);
+  const [allStaff,           setAllStaff]           = useState([]);
+  const [batchStats,         setBatchStats]         = useState({ total: 0, active: 0, free: 0, paid: 0 });
 
   // Re-fetch raw data on mount only. The filters don't need new fetches.
   useEffect(() => { fetchAll(); }, []);
@@ -63,31 +89,32 @@ const OverviewPanel = () => {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [leadsRes, studentsRes, paymentsRes, attendanceRes, batchesRes] =
-        await Promise.allSettled([
-          axiosInstance.get(API_ENDPOINTS.leads.base),
-          axiosInstance.get(API_ENDPOINTS.students.base),
-          axiosInstance.get(API_ENDPOINTS.fees.base, { params: { limit: 500 } }),
-          axiosInstance.get(API_ENDPOINTS.studentAttendance.getAll),
-          axiosInstance.get(API_ENDPOINTS.batches.statistics),
-        ]);
+      const [
+        leadsRes, studentsRes, paymentsRes,
+        studentAttRes, staffAttRes, staffRes, batchesRes,
+      ] = await Promise.allSettled([
+        axiosInstance.get(API_ENDPOINTS.leads.base),
+        axiosInstance.get(API_ENDPOINTS.students.base),
+        axiosInstance.get(API_ENDPOINTS.fees.base, { params: { limit: 500 } }),
+        axiosInstance.get(API_ENDPOINTS.studentAttendance.getAll),
+        axiosInstance.get(API_ENDPOINTS.staffAttendance.getAll),
+        axiosInstance.get(API_ENDPOINTS.staff.base),
+        axiosInstance.get(API_ENDPOINTS.batches.statistics),
+      ]);
 
-      if (leadsRes.status === 'fulfilled') {
-        const d = leadsRes.value.data;
-        setAllLeads(Array.isArray(d) ? d : d?.data || d?.leads || []);
-      }
-      if (studentsRes.status === 'fulfilled') {
-        const d = studentsRes.value.data;
-        setAllStudents(Array.isArray(d) ? d : d?.data || d?.students || []);
-      }
-      if (paymentsRes.status === 'fulfilled') {
-        const d = paymentsRes.value.data;
-        setAllPayments(Array.isArray(d) ? d : d?.data || []);
-      }
-      if (attendanceRes.status === 'fulfilled') {
-        const d = attendanceRes.value.data;
-        setAllAttendance(Array.isArray(d) ? d : d?.data || []);
-      }
+      const unwrap = (r) => {
+        if (r.status !== 'fulfilled') return [];
+        const d = r.value.data;
+        return Array.isArray(d) ? d : d?.data || d?.leads || d?.students || [];
+      };
+
+      setAllLeads(unwrap(leadsRes));
+      setAllStudents(unwrap(studentsRes));
+      setAllPayments(unwrap(paymentsRes));
+      setAllAttendance(unwrap(studentAttRes));
+      setAllStaffAttendance(unwrap(staffAttRes));
+      setAllStaff(unwrap(staffRes));
+
       if (batchesRes.status === 'fulfilled') {
         const stats = batchesRes.value.data?.data || batchesRes.value.data || {};
         setBatchStats({
@@ -134,14 +161,50 @@ const OverviewPanel = () => {
     [allAttendance, selectedBranch, range]
   );
 
+  const filteredStaffAttendance = React.useMemo(() =>
+    allStaffAttendance.filter(a => inBranch(a, selectedBranch) && inRange(a.date || a.checkInTime || a.createdAt, range)),
+    [allStaffAttendance, selectedBranch, range]
+  );
+
+  // Always-current "all students" / "all staff" counts — used as denominators
+  // for attendance % (otherwise an empty filter range gives a misleading 100%).
+  const activeStudentCount = React.useMemo(
+    () => allStudents.filter(s => (s.status || 'Active') === 'Active'
+                              && inBranch(s, selectedBranch)).length,
+    [allStudents, selectedBranch]
+  );
+  const activeStaffCount = React.useMemo(
+    () => allStaff.filter(s => s.isActive !== false && inBranch(s, selectedBranch)).length,
+    [allStaff, selectedBranch]
+  );
+
   const dashboardStats = React.useMemo(() => {
+    // ── Lead funnel — pre-conversion stages live on Lead.stage ───────────
     const total       = filteredLeads.length;
     const enquiry     = filteredLeads.filter(l => l.stage === 'Enquiry').length;
     const counselling = filteredLeads.filter(l => l.stage === 'Counselling').length;
-    const freeBatch   = filteredLeads.filter(l => l.stage === 'Free Batch').length;
-    const paidBatch   = filteredLeads.filter(l => l.stage === 'Paid Batch').length;
-    const converted   = filteredLeads.filter(l => l.stage === 'Admission').length;
-    const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(2) : 0;
+
+    // ── Post-conversion stages — once a Lead becomes a Student, the lead
+    // record is typically removed/superseded. Counting only Lead.stage would
+    // hide every student that was already admitted. So we combine:
+    //   Free Batch  = leads in 'Free Batch'  + students with batchType 'Free'
+    //   Paid Batch  = leads in 'Paid Batch'  + students with batchType 'Paid'
+    //   Admission   = leads in 'Admission'   + every Student in the window
+    //   Conversion% = converted / (leads + converted)
+    const leadFreeBatch  = filteredLeads.filter(l => l.stage === 'Free Batch').length;
+    const leadPaidBatch  = filteredLeads.filter(l => l.stage === 'Paid Batch').length;
+    const leadAdmission  = filteredLeads.filter(l => l.stage === 'Admission').length;
+    const stuFreeBatch   = filteredStudents.filter(s => s.batchType === 'Free').length;
+    const stuPaidBatch   = filteredStudents.filter(s => s.batchType === 'Paid').length;
+
+    const freeBatch = leadFreeBatch + stuFreeBatch;
+    const paidBatch = leadPaidBatch + stuPaidBatch;
+    const converted = leadAdmission + filteredStudents.length;
+
+    const funnelTotal    = total + filteredStudents.length;
+    const conversionRate = funnelTotal > 0
+      ? ((converted / funnelTotal) * 100).toFixed(2)
+      : '0.00';
 
     const collected = filteredPayments
       .filter(p => p.status === 'SUCCESS' || p.status === 'Completed')
@@ -149,10 +212,31 @@ const OverviewPanel = () => {
     const pending   = filteredStudents.reduce((sum, s) => sum + (Number(s.pendingFees) || 0), 0);
     const totalFees = filteredStudents.reduce((sum, s) => sum + (Number(s.totalFees)   || 0), 0);
 
-    const present = filteredAttendance.filter(a => ['Present', 'Late'].includes(a.status)).length;
-    const absent  = filteredAttendance.filter(a => a.status === 'Absent').length;
-    const totalAtt = filteredAttendance.length;
-    const percentage = totalAtt > 0 ? ((present / totalAtt) * 100).toFixed(1) : 0;
+    // ── Student attendance (period scoped) ─────────────────────────────────
+    const stuPresent = filteredAttendance.filter(a => ['Present', 'Late'].includes(a.status)).length;
+    const stuAbsent  = filteredAttendance.filter(a => a.status === 'Absent').length;
+    const stuMarked  = filteredAttendance.length;
+    // Daily view → use today's enrolled active students as denominator so we
+    // don't show "100%" just because only present rows were recorded.
+    // Other views → fall back to marked rows which is the only reliable base.
+    const stuDenominator = timeRange === 'daily'
+      ? Math.max(activeStudentCount, stuMarked)
+      : stuMarked;
+    const stuPercentage = stuDenominator > 0
+      ? ((stuPresent / stuDenominator) * 100).toFixed(1)
+      : '0.0';
+
+    // ── Staff attendance (period scoped) ───────────────────────────────────
+    const today    = new Date();
+    const stfToday = filteredStaffAttendance.filter(a => isSameDay(a.date || a.checkInTime, today));
+    const stfPresent = filteredStaffAttendance.filter(a => ['Present', 'Late'].includes(a.status)).length;
+    const stfMarked  = filteredStaffAttendance.length;
+    const stfDenominator = timeRange === 'daily'
+      ? Math.max(activeStaffCount, stfMarked)
+      : stfMarked;
+    const stfPercentage = stfDenominator > 0
+      ? ((stfPresent / stfDenominator) * 100).toFixed(1)
+      : '0.0';
 
     return {
       leads: { total, enquiry, counselling, freeBatch, paidBatch, converted, conversionRate },
@@ -164,10 +248,24 @@ const OverviewPanel = () => {
         paid:     filteredStudents.filter(s => s.batchType === 'Paid').length,
       },
       revenue: { total: totalFees, collected, pending },
-      attendance: { today: totalAtt, present, absent, percentage },
+      studentAttendance: {
+        marked:     stuMarked,
+        present:    stuPresent,
+        absent:     stuAbsent,
+        percentage: stuPercentage,
+        denominator: stuDenominator,
+      },
+      staffAttendance: {
+        marked:     stfMarked,
+        today:      stfToday.length,
+        present:    stfPresent,
+        percentage: stfPercentage,
+        denominator: stfDenominator,
+      },
       batches: batchStats,
     };
-  }, [filteredLeads, filteredStudents, filteredPayments, filteredAttendance, batchStats]);
+  }, [filteredLeads, filteredStudents, filteredPayments, filteredAttendance,
+      filteredStaffAttendance, batchStats, timeRange, activeStudentCount, activeStaffCount]);
 
   const recentLeads = React.useMemo(
     () => filteredLeads.slice(0, 5),
@@ -197,12 +295,21 @@ const OverviewPanel = () => {
       ['Converted',       dashboardStats.leads.converted],
       ['Conversion Rate', `${dashboardStats.leads.conversionRate}%`],
       [''], ['REVENUE'],
-      ['Collected', `₹${dashboardStats.revenue.collected.toLocaleString()}`],
-      ['Pending',   `₹${dashboardStats.revenue.pending.toLocaleString()}`],
+      ['Collected', formatINR(dashboardStats.revenue.collected)],
+      ['Pending',   formatINR(dashboardStats.revenue.pending)],
       [''], ['STUDENTS'],
       ['Total',    dashboardStats.students.total],
       ['Active',   dashboardStats.students.active],
       ['Inactive', dashboardStats.students.inactive],
+      [''], ['STUDENT ATTENDANCE'],
+      ['Marked',     dashboardStats.studentAttendance.marked],
+      ['Present',    dashboardStats.studentAttendance.present],
+      ['Absent',     dashboardStats.studentAttendance.absent],
+      ['Percentage', `${dashboardStats.studentAttendance.percentage}%`],
+      [''], ['STAFF ATTENDANCE'],
+      ['Marked',     dashboardStats.staffAttendance.marked],
+      ['Present',    dashboardStats.staffAttendance.present],
+      ['Percentage', `${dashboardStats.staffAttendance.percentage}%`],
     ];
     const csv  = [['Metric','Value'], ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -232,6 +339,7 @@ const OverviewPanel = () => {
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
+            <option value="all">All Time</option>
           </select>
           <select value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}
             className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#C8294A] bg-white text-sm">
@@ -250,48 +358,65 @@ const OverviewPanel = () => {
       </div>
 
       {/* Key Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-[#C8294A] text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="bg-[#C8294A] text-white p-5 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-white/80 text-sm font-medium">Total Leads</p>
-              <h3 className="text-4xl font-bold mt-2">{dashboardStats.leads.total}</h3>
-              <p className="text-white/80 text-sm mt-2">Conversion: {dashboardStats.leads.conversionRate}%</p>
+              <h3 className="text-3xl font-bold mt-2">{dashboardStats.leads.total}</h3>
+              <p className="text-white/80 text-xs mt-2">Conversion: {dashboardStats.leads.conversionRate}%</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-lg"><Users className="w-8 h-8" /></div>
+            <div className="bg-white/20 p-2.5 rounded-lg"><Users className="w-7 h-7" /></div>
           </div>
         </div>
 
-        <div className="bg-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+        <div className="bg-green-600 text-white p-5 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-white/80 text-sm font-medium">Total Revenue</p>
-              <h3 className="text-4xl font-bold mt-2">₹{(dashboardStats.revenue.collected / 100000).toFixed(1)}L</h3>
-              <p className="text-white/80 text-sm mt-2">Pending: ₹{(dashboardStats.revenue.pending / 100000).toFixed(1)}L</p>
+              <h3 className="text-3xl font-bold mt-2">{formatINR(dashboardStats.revenue.collected)}</h3>
+              <p className="text-white/80 text-xs mt-2">Pending: {formatINR(dashboardStats.revenue.pending)}</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-lg"><DollarSign className="w-8 h-8" /></div>
+            <div className="bg-white/20 p-2.5 rounded-lg"><DollarSign className="w-7 h-7" /></div>
           </div>
         </div>
 
-        <div className="bg-[#1a1a1a] text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+        <div className="bg-[#1a1a1a] text-white p-5 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-white/80 text-sm font-medium">Total Students</p>
-              <h3 className="text-4xl font-bold mt-2">{dashboardStats.students.total}</h3>
-              <p className="text-white/80 text-sm mt-2">Active: {dashboardStats.students.active}</p>
+              <h3 className="text-3xl font-bold mt-2">{dashboardStats.students.total}</h3>
+              <p className="text-white/80 text-xs mt-2">Active: {dashboardStats.students.active}</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-lg"><GraduationCap className="w-8 h-8" /></div>
+            <div className="bg-white/20 p-2.5 rounded-lg"><GraduationCap className="w-7 h-7" /></div>
           </div>
         </div>
 
-        <div className="bg-orange-500 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+        {/* Student Attendance — separate from staff so the % means something */}
+        <div className="bg-orange-500 text-white p-5 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-white/80 text-sm font-medium">Today's Attendance</p>
-              <h3 className="text-4xl font-bold mt-2">{dashboardStats.attendance.percentage}%</h3>
-              <p className="text-white/80 text-sm mt-2">Present: {dashboardStats.attendance.present}/{dashboardStats.attendance.today}</p>
+              <p className="text-white/80 text-sm font-medium">Student Attendance</p>
+              <h3 className="text-3xl font-bold mt-2">{dashboardStats.studentAttendance.percentage}%</h3>
+              <p className="text-white/80 text-xs mt-2">
+                Present: {dashboardStats.studentAttendance.present}/{dashboardStats.studentAttendance.denominator || 0}
+              </p>
             </div>
-            <div className="bg-white/20 p-3 rounded-lg"><CheckCircle className="w-8 h-8" /></div>
+            <div className="bg-white/20 p-2.5 rounded-lg"><CheckCircle className="w-7 h-7" /></div>
+          </div>
+        </div>
+
+        {/* Staff Attendance — distinct dataset, distinct denominator */}
+        <div className="bg-blue-600 text-white p-5 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-white/80 text-sm font-medium">Staff Attendance</p>
+              <h3 className="text-3xl font-bold mt-2">{dashboardStats.staffAttendance.percentage}%</h3>
+              <p className="text-white/80 text-xs mt-2">
+                Present: {dashboardStats.staffAttendance.present}/{dashboardStats.staffAttendance.denominator || 0}
+              </p>
+            </div>
+            <div className="bg-white/20 p-2.5 rounded-lg"><Briefcase className="w-7 h-7" /></div>
           </div>
         </div>
       </div>

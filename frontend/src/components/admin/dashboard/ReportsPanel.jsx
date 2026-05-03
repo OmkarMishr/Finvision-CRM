@@ -113,6 +113,7 @@ const ReportsPanel = ({
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
+              <option value="all">All Time</option>
             </select>
           )}
           {onRefresh && (
@@ -132,7 +133,9 @@ const ReportsPanel = ({
       {/* Report Sections */}
       <div className="bg-white rounded-xl shadow p-6 space-y-6">
         <h4 className="text-lg font-semibold text-[#1a1a1a]">
-          {timeRange.charAt(0).toUpperCase() + timeRange.slice(1)} MIS Report
+          {timeRange === 'all'
+            ? 'All Time'
+            : (timeRange.charAt(0).toUpperCase() + timeRange.slice(1))} MIS Report
         </h4>
 
         {reportData.map((section, index) => (

@@ -2,13 +2,15 @@ import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 // Bucket size that pairs naturally with the dashboard time-range filter:
-//   daily   → 7 day-buckets (last 7 calendar days)
-//   weekly  → 4 week-buckets (last 4 weeks)
+//   daily   → 7 day-buckets   (last 7 calendar days)
+//   weekly  → 4 week-buckets  (last 4 weeks)
 //   monthly → 6 month-buckets (last 6 months)
+//   all     → 12 month-buckets (rolling year)
 const BUCKETS = {
-  daily:   { count: 7, unit: 'day'   },
-  weekly:  { count: 4, unit: 'week'  },
-  monthly: { count: 6, unit: 'month' },
+  daily:   { count: 7,  unit: 'day'   },
+  weekly:  { count: 4,  unit: 'week'  },
+  monthly: { count: 6,  unit: 'month' },
+  all:     { count: 12, unit: 'month' },
 };
 
 const startOfDay = (d) => {
@@ -80,10 +82,12 @@ const RevenueChart = ({ timeRange = 'daily', payments = [] }) => {
           <p className="text-2xl font-bold text-gray-800">
             {totalRevenue >= 100000
               ? `₹${(totalRevenue / 100000).toFixed(2)}L`
-              : `₹${totalRevenue.toLocaleString('en-IN')}`}
+              : totalRevenue >= 1000
+                ? `₹${(totalRevenue / 1000).toFixed(1)}K`
+                : `₹${totalRevenue.toLocaleString('en-IN')}`}
           </p>
           <p className="text-sm text-gray-600">
-            Revenue · {timeRange.charAt(0).toUpperCase() + timeRange.slice(1)}
+            Revenue · {timeRange === 'all' ? 'All Time' : (timeRange.charAt(0).toUpperCase() + timeRange.slice(1))}
           </p>
         </div>
         {chartData.length >= 2 && (
