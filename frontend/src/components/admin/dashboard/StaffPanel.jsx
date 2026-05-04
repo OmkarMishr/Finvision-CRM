@@ -5,7 +5,7 @@ import {
   Briefcase, Clock, CheckCircle, XCircle, User, Plus,
   Phone, Mail, Calendar, ClipboardList, AlertCircle,
   CheckSquare, Ban, MessageSquare, CalendarDays, TrendingUp,
-  Pencil
+  Pencil, Wallet, FileMinus
 } from 'lucide-react';
 import axiosInstance from '../../../config/axios';
 import { API_ENDPOINTS } from '../../../config/api';
@@ -407,6 +407,237 @@ const LeaveReviewModal = ({ leave, onClose, onReviewed }) => {
 };
 
 // ─── Staff Detail Modal ───────────────────────────────────────────────────────
+// ─── Monthly attendance + leave + salary computation ─────────────────────────
+// Payroll formula:
+//   workingDays  = days in month minus Sundays (Mon–Sat schedule by default)
+//   presentDays  = attendance rows in [Present, Late]   (Half Day counts 0.5)
+//   paidLeave    = approved leaves NOT of type "unpaid" (halfday counts 0.5)
+//   unpaidLeave  = approved leaves of type "unpaid"
+//   absent       = workingDays − presentDays − paidLeave − unpaidLeave (≥0)
+//   paidDays     = presentDays + paidLeave
+//   payable      = baseSalary × paidDays / workingDays
+const buildPayroll = ({ baseSalary, attendance, leaves, year, month }) => {
+  // Days in month (month is 0-indexed) — `new Date(y, m+1, 0).getDate()`
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let workingDays = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (new Date(year, month, d).getDay() !== 0) workingDays++; // Sunday = off
+  }
+
+  // Attendance — restrict to this month
+  const inMonth = (date) => {
+    if (!date) return false;
+    const x = new Date(date);
+    return x.getFullYear() === year && x.getMonth() === month;
+  };
+
+  const monthAttendance = attendance.filter(a => inMonth(a.date));
+  let presentDays = 0;
+  for (const a of monthAttendance) {
+    if (a.status === 'Half Day') presentDays += 0.5;
+    else if (['Present', 'Late'].includes(a.status)) presentDays += 1;
+  }
+
+  // Leave — approved only, overlapping this month
+  const monthStart = new Date(year, month, 1);
+  const monthEnd   = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+  // Count days an approved leave overlaps within this month (Sundays excluded
+  // so an overlap that's entirely on Sundays doesn't reduce the salary).
+  const overlapDays = (l) => {
+    const s = new Date(Math.max(new Date(l.fromDate).getTime(), monthStart.getTime()));
+    const e = new Date(Math.min(new Date(l.toDate).getTime(),   monthEnd.getTime()));
+    if (e < s) return 0;
+    if (l.isHalfDay) return 0.5;
+    let count = 0;
+    const cursor = new Date(s); cursor.setHours(0, 0, 0, 0);
+    while (cursor <= e) {
+      if (cursor.getDay() !== 0) count++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return count;
+  };
+
+  const approved = leaves.filter(l =>
+    l.status === 'approved' &&
+    new Date(l.fromDate) <= monthEnd && new Date(l.toDate) >= monthStart
+  );
+  let paidLeave = 0, unpaidLeave = 0;
+  for (const l of approved) {
+    const days = overlapDays(l);
+    if (l.leaveType === 'unpaid') unpaidLeave += days;
+    else                          paidLeave   += days;
+  }
+
+  const accounted = presentDays + paidLeave + unpaidLeave;
+  const absent    = Math.max(0, workingDays - accounted);
+  const paidDays  = presentDays + paidLeave;
+  const payable   = workingDays > 0
+    ? Math.round((Number(baseSalary) || 0) * (paidDays / workingDays))
+    : 0;
+
+  return {
+    workingDays, presentDays, paidLeave, unpaidLeave, absent, paidDays, payable,
+    leaveCount: approved.length,
+  };
+};
+
+const StaffPayrollPanel = ({ staff }) => {
+  const today = new Date();
+  const [year,  setYear]  = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+
+  const [attendance, setAttendance] = useState([]);
+  const [leaves,     setLeaves]     = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+
+  useEffect(() => {
+    if (!staff?._id) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true); setError('');
+      const startDate = new Date(year, month,     1).toISOString();
+      const endDate   = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
+      try {
+        const [attRes, leaveRes] = await Promise.allSettled([
+          axiosInstance.get(API_ENDPOINTS.staffAttendance.getAll, {
+            params: { userId: staff._id, startDate, endDate },
+          }),
+          axiosInstance.get(API_ENDPOINTS.leave.admin.all, {
+            params: { staffId: staff._id, fromDate: startDate, toDate: endDate, status: 'approved', limit: 100 },
+          }),
+        ]);
+        if (cancelled) return;
+        if (attRes.status === 'fulfilled') {
+          const d = attRes.value.data;
+          setAttendance(Array.isArray(d) ? d : d?.data || []);
+        } else {
+          setAttendance([]);
+        }
+        if (leaveRes.status === 'fulfilled') {
+          const d = leaveRes.value.data;
+          // Tolerate { data: { records: [] } } and { records: [] } shapes
+          const records = d?.data?.records || d?.records || d?.data || [];
+          setLeaves(Array.isArray(records) ? records : []);
+        } else {
+          setLeaves([]);
+        }
+      } catch (e) {
+        if (!cancelled) setError('Failed to load payroll data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [staff?._id, year, month]);
+
+  const payroll = React.useMemo(
+    () => buildPayroll({
+      baseSalary: staff?.staffInfo?.salary || 0,
+      attendance, leaves, year, month,
+    }),
+    [staff?.staffInfo?.salary, attendance, leaves, year, month]
+  );
+
+  const monthOptions = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December',
+  ];
+  // 24 months back from today, present month first
+  const yearOptions = [];
+  for (let i = -2; i <= 0; i++) yearOptions.push(today.getFullYear() + i);
+
+  const baseSalary = Number(staff?.staffInfo?.salary) || 0;
+
+  return (
+    <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[#C8294A]/10 flex items-center justify-center">
+            <Wallet className="w-4 h-4 text-[#C8294A]" />
+          </div>
+          <h4 className="font-semibold text-[#1a1a1a] text-sm">Monthly Attendance & Salary</h4>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={month} onChange={e => setMonth(Number(e.target.value))}
+            className="px-2 py-1 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8294A]">
+            {monthOptions.map((m, i) => <option key={m} value={i}>{m}</option>)}
+          </select>
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="px-2 py-1 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8294A]">
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-6 text-gray-400 text-sm">
+          <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading…
+        </div>
+      ) : (
+        <>
+          {/* Attendance / leave breakdown */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {[
+              { label: 'Working Days',  value: payroll.workingDays,  color: 'text-[#1a1a1a]', icon: CalendarDays },
+              { label: 'Present',       value: payroll.presentDays,  color: 'text-green-600', icon: CheckCircle  },
+              { label: 'Paid Leave',    value: payroll.paidLeave,    color: 'text-blue-600',  icon: ClipboardList },
+              { label: 'Unpaid Leave',  value: payroll.unpaidLeave,  color: 'text-orange-600',icon: FileMinus    },
+              { label: 'Absent',        value: payroll.absent,       color: 'text-red-600',   icon: XCircle      },
+            ].map(({ label, value, color, icon: Icon }) => (
+              <div key={label} className="bg-white rounded-lg p-2.5 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Icon className={`w-3.5 h-3.5 ${color}`} />
+                  <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">{label}</p>
+                </div>
+                <p className={`text-lg font-bold ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Salary computation */}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-xs text-gray-500">Base Salary</p>
+                <p className="text-base font-semibold text-[#1a1a1a]">
+                  {baseSalary > 0 ? `₹${baseSalary.toLocaleString('en-IN')}` : 'Not set'}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500">
+                  Payable for {monthOptions[month]} {year}
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  ₹{payroll.payable.toLocaleString('en-IN')}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {payroll.paidDays}/{payroll.workingDays} paid days
+                  {' · '}
+                  {payroll.workingDays > 0
+                    ? `₹${Math.round(baseSalary / payroll.workingDays).toLocaleString('en-IN')}/day`
+                    : '—'}
+                </p>
+              </div>
+            </div>
+            {baseSalary === 0 && (
+              <p className="text-[11px] text-orange-600 mt-2">
+                Set a salary in this staff member's profile to compute payable amount.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const StaffModal = ({ staff, onClose }) => {
   if (!staff) return null;
   const displayName = staff.name || `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || 'Unknown';
@@ -486,6 +717,9 @@ const StaffModal = ({ staff, onClose }) => {
               </div>
             </div>
           )}
+
+          {/* Monthly attendance, leave breakdown + computed payable salary */}
+          <StaffPayrollPanel staff={staff} />
         </div>
       </div>
     </div>
@@ -572,6 +806,139 @@ const AddStaffModal = ({ onClose, onSuccess }) => {
               {loading
                 ? <><RefreshCw className="w-4 h-4 animate-spin" /> Adding...</>
                 : <><Plus className="w-4 h-4" /> Add Staff</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ─── Edit Staff Modal ─────────────────────────────────────────────────────────
+// Same field set as AddStaffModal *minus* password (use "Reset Password" for
+// that), pre-filled from the row the admin clicked.
+const EditStaffModal = ({ staff, onClose, onSuccess }) => {
+  const [form, setForm] = useState({
+    firstName:  staff?.firstName            || '',
+    lastName:   staff?.lastName             || '',
+    email:      staff?.email                || '',
+    phone:      staff?.phone                || '',
+    staffRole:  staff?.staffRole            || 'Teacher',
+    department: staff?.staffInfo?.department || '',
+    subject:    staff?.staffInfo?.subject    || '',
+    salary:     staff?.staffInfo?.salary != null ? String(staff.staffInfo.salary) : '',
+    employeeId: staff?.staffInfo?.employeeId || '',
+    isActive:   staff?.isActive !== false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
+
+  const set = (key) => (e) => setForm(p => ({ ...p, [key]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      await axiosInstance.put(API_ENDPOINTS.staff.update(staff._id), {
+        firstName:  form.firstName,
+        lastName:   form.lastName,
+        email:      form.email,
+        phone:      form.phone || null,
+        staffRole:  form.staffRole,
+        isActive:   form.isActive,
+        // Backend nests these under staffInfo.* — controller handles the dot path.
+        department: form.department || null,
+        subject:    form.subject    || null,
+        employeeId: form.employeeId || null,
+        salary:     form.salary === '' ? null : Number(form.salary),
+      });
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update staff member');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8294A]";
+  const labelCls = "block text-xs font-semibold text-gray-500 uppercase mb-1";
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <div>
+            <h2 className="text-xl font-bold text-[#1a1a1a]">Edit Staff Member</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {`${staff.firstName || ''} ${staff.lastName || ''}`.trim() || staff.email}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className={labelCls}>First Name *</label>
+              <input required value={form.firstName} onChange={set('firstName')} className={inputCls} /></div>
+            <div><label className={labelCls}>Last Name *</label>
+              <input required value={form.lastName} onChange={set('lastName')} className={inputCls} /></div>
+            <div><label className={labelCls}>Email *</label>
+              <input required type="email" value={form.email} onChange={set('email')} className={inputCls} /></div>
+            <div><label className={labelCls}>Phone</label>
+              <input value={form.phone} onChange={set('phone')} placeholder="9876543210" className={inputCls} /></div>
+            <div><label className={labelCls}>Staff Role *</label>
+              <select value={form.staffRole} onChange={set('staffRole')} className={`${inputCls} bg-white`}>
+                <option value="Teacher">Teacher</option>
+                <option value="counselor">Counselor</option>
+                <option value="telecaller">Telecaller</option>
+              </select></div>
+            <div><label className={labelCls}>Department</label>
+              <select value={form.department} onChange={set('department')} className={`${inputCls} bg-white`}>
+                <option value="">Select Department</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select></div>
+            <div><label className={labelCls}>Subject</label>
+              <input value={form.subject} onChange={set('subject')} placeholder="e.g. Algebra" className={inputCls} /></div>
+            <div><label className={labelCls}>Employee ID</label>
+              <input value={form.employeeId} onChange={set('employeeId')} placeholder="e.g. EMP00123" className={inputCls} /></div>
+            <div className="md:col-span-2"><label className={labelCls}>Salary (₹ / month)</label>
+              <input type="number" min="0" value={form.salary} onChange={set('salary')} placeholder="e.g. 35000" className={inputCls} /></div>
+          </div>
+
+          {/* Active toggle */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-[#1a1a1a]">Account Active</p>
+              <p className="text-xs text-gray-500">Inactive accounts cannot log in</p>
+            </div>
+            <button type="button"
+              onClick={() => setForm(p => ({ ...p, isActive: !p.isActive }))}
+              className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${form.isActive ? 'bg-[#C8294A]' : 'bg-gray-300'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <p className="text-[11px] text-gray-400">
+            Tip: use the <strong>Change Role</strong> shortcut for quick role swaps and <strong>Reset Password</strong> from the staff list to issue a new password.
+          </p>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading}
+              className="flex-1 px-4 py-2 bg-[#C8294A] text-white rounded-lg text-sm font-medium hover:bg-[#a01f39] disabled:opacity-60 flex items-center justify-center gap-2">
+              {loading
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>
+                : <><CheckSquare className="w-4 h-4" /> Save Changes</>}
             </button>
           </div>
         </form>
@@ -903,8 +1270,9 @@ const StaffPanel = () => {
   const [selectedStaff,   setSelectedStaff]   = useState(null);
   const [deleteConfirm,   setDeleteConfirm]   = useState(null);
   const [showAddModal,    setShowAddModal]    = useState(false);
+  const [editStaff,       setEditStaff]       = useState(null); // full edit modal
   const [pendingLeaves,   setPendingLeaves]   = useState(0);
-  const [changeRoleModal, setChangeRoleModal] = useState(null); // ← NEW
+  const [changeRoleModal, setChangeRoleModal] = useState(null); // role-only quick edit
 
   const PER_PAGE = 10;
 
@@ -1213,6 +1581,10 @@ const StaffPanel = () => {
                               className="p-1.5 hover:bg-[#C8294A]/10 hover:text-[#C8294A] text-gray-400 rounded-lg transition-colors" title="View Details">
                               <Eye className="w-4 h-4" />
                             </button>
+                            <button onClick={() => setEditStaff(member)}
+                              className="p-1.5 hover:bg-blue-50 hover:text-blue-600 text-gray-400 rounded-lg transition-colors" title="Edit Staff">
+                              <Pencil className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => setChangeRoleModal(member)}
                               className="p-1.5 hover:bg-purple-50 hover:text-purple-600 text-gray-400 rounded-lg transition-colors" title="Change Role">
@@ -1276,6 +1648,15 @@ const StaffPanel = () => {
 
       {showAddModal && (
         <AddStaffModal onClose={() => setShowAddModal(false)} onSuccess={fetchStaff} />
+      )}
+
+      {/* Full Edit Modal */}
+      {editStaff && (
+        <EditStaffModal
+          staff={editStaff}
+          onClose={() => setEditStaff(null)}
+          onSuccess={fetchStaff}
+        />
       )}
 
       {/* Change Role Modal */}

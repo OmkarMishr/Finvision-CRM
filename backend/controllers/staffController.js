@@ -156,15 +156,49 @@ const getStaffById = async (req, res) => {
 }
 
 // ─── PUT /api/staff/:id ───────────────────────────────────────────────────────
+// Admin edit. Accepts top-level user fields and the staffInfo subdocument,
+// either flattened (`department`, `subject`, `salary`, `employeeId`) for the
+// classic AddStaff payload or nested (`staffInfo: { ... }`).
 const updateStaff = async (req, res) => {
   try {
-    // Prevent password + role change via this route
-    const { password, role, ...updateData } = req.body
+    // Strip password and role from the body — those have dedicated endpoints.
+    const {
+      password, role,
+      firstName, lastName, email, phone,
+      staffRole, isActive,
+      department, subject, salary, employeeId, joiningDate,
+      staffInfo,
+      ...rest
+    } = req.body
+
+    const $set = { ...rest }
+
+    if (firstName !== undefined) $set.firstName = firstName
+    if (lastName  !== undefined) $set.lastName  = lastName
+    if (email     !== undefined) $set.email     = String(email).toLowerCase().trim()
+    if (phone     !== undefined) $set.phone     = phone
+    if (staffRole !== undefined) $set.staffRole = staffRole
+    if (typeof isActive === 'boolean') $set.isActive = isActive
+
+    // Nest the staffInfo fields under dotted paths so we don't overwrite
+    // unrelated fields (joiningDate stays put when only salary changes).
+    const nested = {
+      department, subject, salary, employeeId, joiningDate,
+      ...(staffInfo || {}),
+    }
+    for (const [k, v] of Object.entries(nested)) {
+      if (v === undefined) continue
+      if (k === 'salary') {
+        $set['staffInfo.salary'] = v === '' || v === null ? null : Number(v)
+      } else {
+        $set[`staffInfo.${k}`] = v
+      }
+    }
 
     const staff = await User.findOneAndUpdate(
       { _id: req.params.id, role: 'staff' },
-      { $set: updateData },
-      { new: true, runValidators: true }
+      { $set },
+      { new: true, runValidators: true, context: 'query' }
     ).select('-password')
 
     if (!staff) {
@@ -181,6 +215,12 @@ const updateStaff = async (req, res) => {
     })
   } catch (error) {
     console.error('updateStaff error:', error)
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use by another account',
+      })
+    }
     res.status(500).json({
       success: false,
       message: 'Failed to update staff member',
